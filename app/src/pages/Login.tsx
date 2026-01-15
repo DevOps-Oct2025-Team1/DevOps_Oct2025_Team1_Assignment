@@ -16,11 +16,20 @@ export default function AILoginPage() {
     setError('');
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    setTimeout(async () => {
       if (email && password) {
         console.log('Login attempt:', { email, password });
-        // Handle successful login here
+        const resp = await fetch("http://localhost:8000/auth/login", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        }).then(resp => resp.json());
+        console.log(resp);
       } else {
         setError('Please fill in all fields');
       }

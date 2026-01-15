@@ -59,6 +59,6 @@ func main() {
 	mux.HandleFunc("/login", loginHandler)
 
 	log.Println("Auth service running on :8080")
-	log.Fatal(http.ListenAndServe("127.0.0.3:8080", corsMiddleware(mux)))
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(mux)))
 }
 

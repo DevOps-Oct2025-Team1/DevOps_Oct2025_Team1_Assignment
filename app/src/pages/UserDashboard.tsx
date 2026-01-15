@@ -102,8 +102,8 @@ export default function DashboardPage() {
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Bot className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-300">
+              <Bot className="h-4 w-4 text-primary-foreground" color="black"/>
             </div>
             <span className="font-semibold text-foreground">Orama</span>
           </Link>
@@ -112,7 +112,7 @@ export default function DashboardPage() {
         <div className="p-4">
           <Button
             onClick={handleNewChat}
-            className="w-full justify-start gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="w-full justify-start gap-2 text-foreground hover:bg-primary/90 bg-gradient-to-br from-violet-500 to-purple-300"
           >
             <Plus className="h-4 w-4" />
             New Chat
@@ -178,9 +178,9 @@ export default function DashboardPage() {
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
             >
-              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" color="black" /> : <PanelLeft className="h-5 w-5" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   <Button
                     key={i}
                     variant="outline"
-                    className="justify-start border-border text-left text-muted-foreground hover:border-primary/50 hover:text-foreground bg-transparent"
+                    className="justify-start border-border text-left text-foreground hover:border-primary/50 hover:text-black bg-transparent bg-gradient-to-br from-violet-500 to-purple-300"
                     onClick={() => setInput(prompt)}
                   >
                     {prompt}

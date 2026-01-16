@@ -1,0 +1,59 @@
+name: Personal Branch CI
+
+on:
+  push:
+    branches-ignore: ["main", "dev"]
+  pull_request:
+    branches-ignore: ["main", "dev"]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go (for Backend/Auth)
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Run Linter
+        run: go vet ./...
+
+      - name: Run Unit Tests
+        run: go test ./... -v
+
+      - name: Notify Discord - CI Started
+        if: always()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            **CI Started on Feature Branch**
+            **User:** ${{ github.actor }}
+            **Branch:** `${{ github.ref_name }}`
+            **Commit:** `${{ github.event.head_commit.message }}`
+
+      - name: Notify Discord - CI Failed
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            **CI FAILED: Quality Gate Not Met**
+            **Developer:** ${{ github.actor }}
+            **Branch:** `${{ github.ref_name }}`
+            **Error:** Tests or Linting failed. 
+            **Action:** Please fix before opening a PR to `dev`.
+            **Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Discord - CI Success
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "**CI Passed:** `${{ github.ref_name }}` is ready for a PR."

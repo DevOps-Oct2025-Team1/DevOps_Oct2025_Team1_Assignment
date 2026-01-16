@@ -1,0 +1,96 @@
+name: Production Release Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  prod-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+
+      - name: Run SAST (GoSec)
+        id: sast
+        run: |
+          echo "Running SAST (GoSec) for production..."
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./... || exit 1
+
+      - name: Run SCA (Trivy)
+        id: sca
+        uses: aquasec/trivy-action@v2
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Run DAST (OWASP ZAP)
+        id: dast
+        uses: zaproxy/action-full-scan@v0.5.0
+        with:
+          target: 'http://localhost:8080' # Replace with real endpoint if available
+          rules_file_name: ''
+          cmd_options: '-t 5 -r zap-report.html'
+
+      # -----------------------------
+      # 2. INFRASTRUCTURE & DEPLOYMENT (Placeholder)
+      # -----------------------------
+      - name: Deploy to Production
+        id: deploy
+        run: |
+          echo "Executing Terraform apply..."
+          echo "Updating Kubernetes manifests for microservices..."
+
+    
+      - name: Notify Discord - Deployment Started
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "🚀 **PROD DEPLOYMENT INITIATED:** Moving code from `main` to the AIDC Cluster."
+
+      - name: PagerDuty - Production Incident
+        if: failure() && steps.deploy.outcome == 'failure'
+        uses: shimskiv/pagerduty-action@v1.0.1
+        with:
+          pagerduty-integration-key: ${{ secrets.PAGERDUTY_INTEGRATION_KEY }}
+          pagerduty-event-type: 'trigger'
+          pagerduty-description: 'CRITICAL: Production Deployment Failed on Main branch!'
+
+      - name: Notify Discord - Security Scan Failed
+        if: steps.sast.outcome == 'failure' || steps.sca.outcome == 'failure' || steps.dast.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            🚨 SECURITY ALERT
+            Branch: ${{ github.ref_name }}
+            Scan: SAST / SCA / DAST
+            Commit: ${{ github.sha }}
+
+      - name: Notify Discord - Main Failure
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            🔥 **URGENT: MAIN BRANCH FAILURE**
+            **Status:** Production build is broken.
+            **Actor:** ${{ github.actor }}
+            **Link:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Discord - Release Success
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "🏁 **RELEASE COMPLETE:** AI Model Tester is live and stable."

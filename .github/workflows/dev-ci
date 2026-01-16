@@ -1,0 +1,111 @@
+name: Dev Branch CI
+
+on:
+  push:
+    branches: ["dev"]
+  pull_request:
+    branches: ["dev"]
+
+jobs:
+  ci-dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: CI Sanity Check
+        run: echo "CI running for dev branch"
+
+
+      - name: Run Go Unit Tests
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - run: go test ./... -v
+
+  
+      - name: Integration Tests (Placeholder)
+        run: echo "Integration tests will run here"
+
+
+      # SAST: GoSec
+      - name: Run Go SAST (GoSec)
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./... || exit 1
+
+      # SCA: Dependabot / Trivy for dependencies
+      - name: Run SCA (Trivy)
+        uses: aquasec/trivy-action@v2
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Performance Tests (Placeholder)
+        run: echo "Performance tests will run here"
+
+   
+      - name: Notify Discord - CI Started
+        if: always()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            🚀 CI STARTED
+            Branch: ${{ github.ref_name }}
+            Repo: ${{ github.repository }}
+            Actor: ${{ github.actor }}
+
+      - name: Notify Discord - CI Failed
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            ❌ CI FAILED
+            Branch: ${{ github.ref_name }}
+            Repo: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            Actor: ${{ github.actor }}
+
+      - name: Notify Discord - Integration Test Failed
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            🚨 INTEGRATION TEST FAILED
+            Branch: ${{ github.ref_name }}
+            Service: Placeholder
+            Commit: ${{ github.sha }}
+
+      - name: Notify Discord - Security Scan Failed
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            🚨 SECURITY ALERT
+            Branch: ${{ github.ref_name }}
+            Scan: SAST / SCA / DAST
+            Commit: ${{ github.sha }}
+
+      - name: Notify Discord - Performance Regression
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            📉 PERFORMANCE REGRESSION
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}

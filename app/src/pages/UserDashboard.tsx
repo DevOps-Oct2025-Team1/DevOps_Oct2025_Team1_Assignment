@@ -180,7 +180,7 @@ export default function DashboardPage() {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="text-muted-foreground hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
             >
-              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" color="black" /> : <PanelLeft className="h-5 w-5" />}
+              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" color="black"/> : <PanelLeft className="h-5 w-5" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

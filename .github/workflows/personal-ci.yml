@@ -28,7 +28,7 @@ jobs:
         if: always()
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: |
             **CI Started on Feature Branch**
@@ -40,7 +40,7 @@ jobs:
         if: failure()
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: |
             **CI FAILED: Quality Gate Not Met**
@@ -54,6 +54,6 @@ jobs:
         if: success()
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: "**CI Passed:** `${{ github.ref_name }}` is ready for a PR."

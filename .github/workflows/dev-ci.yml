@@ -84,7 +84,7 @@ jobs:
         if: failure() && steps.unit_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_DEV }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: "❌ **UNIT TEST FAILED**: Logic errors in Go code. Fix required. \nView Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
@@ -92,7 +92,7 @@ jobs:
         if: failure() && steps.integration_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_DEV }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: "🔗 **INTEGRATION FAILURE**: Pub/Sub queue or service communication error. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 

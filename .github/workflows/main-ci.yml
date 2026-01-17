@@ -82,7 +82,7 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
           args: |
-            🔥 **URGENT: MAIN BRANCH FAILURE**
+             **: MAIN BRANCH FAILURE**
             **Status:** Production build is broken.
             **Actor:** ${{ github.actor }}
             **Link:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

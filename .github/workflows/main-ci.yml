@@ -91,7 +91,7 @@ jobs:
         if: failure() && steps.deploy.outcome != 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_DEV }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: "❌ **PROD PIPELINE BROKEN**: The build failed before deployment could start. Actor: ${{ github.actor }}"
 

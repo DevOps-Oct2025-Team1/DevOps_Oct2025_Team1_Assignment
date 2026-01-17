@@ -9,103 +9,89 @@ on:
 jobs:
   ci-dev:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: CI Sanity Check
-        run: echo "CI running for dev branch"
-
-
       - name: Run Go Unit Tests
+        id: unit_tests
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
       - run: go test ./... -v
 
-  
       - name: Integration Tests (Placeholder)
+        id: integration_tests
         run: echo "Integration tests will run here"
 
-
-      # SAST: GoSec
       - name: Run Go SAST (GoSec)
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - run: |
+        id: sast_scan
+        run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec ./... || exit 1
+          # Changed to output SARIF format for GitHub Security Tab
+          gosec -fmt sarif -out gosec-results.sarif ./... || true
 
-      # SCA: Dependabot / Trivy for dependencies
+      - name: Upload GoSec to Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec-results.sarif
+          category: gosec
+
       - name: Run SCA (Trivy)
+        id: sca_scan
         uses: aquasec/trivy-action@v2
         with:
           scan-type: fs
           scan-ref: .
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           severity: CRITICAL,HIGH,MEDIUM
 
+      - name: Upload Trivy to Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
       - name: Performance Tests (Placeholder)
+        id: perf_tests
         run: echo "Performance tests will run here"
 
-   
+
       - name: Notify Discord - CI Started
         if: always()
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
         with:
-          args: |
-            🚀 CI STARTED
-            Branch: ${{ github.ref_name }}
-            Repo: ${{ github.repository }}
-            Actor: ${{ github.actor }}
+          args: "🚀 CI STARTED | Branch: ${{ github.ref_name }} | Actor: ${{ github.actor }}"
 
-      - name: Notify Discord - CI Failed
-        if: failure()
+      - name: Notify Discord - Build Failure (Devs)
+        if: steps.unit_tests.outcome == 'failure' || steps.integration_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }} # Or use a specific Dev Webhook
         with:
-          args: |
-            ❌ CI FAILED
-            Branch: ${{ github.ref_name }}
-            Repo: ${{ github.repository }}
-            Commit: ${{ github.sha }}
-            Actor: ${{ github.actor }}
+          args: "❌ CI FAILED: Unit/Integration tests failed. Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      - name: Notify Discord - Integration Test Failed
-        if: failure()
+      - name: Notify Discord - Security Alert (QA)
+        if: steps.sast_scan.outcome == 'failure' || steps.sca_scan.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }} # Or use a specific QA Webhook
         with:
-          args: |
-            🚨 INTEGRATION TEST FAILED
-            Branch: ${{ github.ref_name }}
-            Service: Placeholder
-            Commit: ${{ github.sha }}
-
-      - name: Notify Discord - Security Scan Failed
-        if: failure()
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
-        with:
-          args: |
-            🚨 SECURITY ALERT
-            Branch: ${{ github.ref_name }}
-            Scan: SAST / SCA / DAST
-            Commit: ${{ github.sha }}
+          args: "🚨 SECURITY ALERT: Vulnerabilities found in SAST/SCA. Check the GitHub Security Tab."
 
       - name: Notify Discord - Performance Regression
-        if: failure()
+        if: steps.perf_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
         with:
-          args: |
-            📉 PERFORMANCE REGRESSION
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
+          args: "📉 PERFORMANCE REGRESSION: Performance metrics dropped on `${{ github.ref_name }}`."

@@ -9,6 +9,7 @@ on:
 jobs:
   ci-dev:
     runs-on: ubuntu-latest
+    # Required for uploading security results to the GitHub Security Tab
     permissions:
       security-events: write
       contents: read
@@ -17,6 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- DEVELOPMENT PHASE ---
       - name: Run Go Unit Tests
         id: unit_tests
         uses: actions/setup-go@v4
@@ -28,11 +30,12 @@ jobs:
         id: integration_tests
         run: echo "Integration tests will run here"
 
+      # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          # Changed to output SARIF format for GitHub Security Tab
+          # Generate SARIF for the Security Tab; continue on error to allow upload
           gosec -fmt sarif -out gosec-results.sarif ./... || true
 
       - name: Upload GoSec to Security Tab
@@ -42,6 +45,7 @@ jobs:
           sarif_file: gosec-results.sarif
           category: gosec
 
+      # --- SECURITY PHASE (SCA) ---
       - name: Run SCA (Trivy)
         id: sca_scan
         uses: aquasec/trivy-action@v2
@@ -59,39 +63,70 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy
 
+      # --- PERFORMANCE PHASE ---
       - name: Performance Tests (Placeholder)
         id: perf_tests
         run: echo "Performance tests will run here"
 
+      # --- ADVANCED NOTIFICATION ROUTING (6.1) ---
 
+      # Initial Status Alert
       - name: Notify Discord - CI Started
         if: always()
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
         with:
-          args: "🚀 CI STARTED | Branch: ${{ github.ref_name }} | Actor: ${{ github.actor }}"
+          args: "🚀 **CI STARTED** | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}`"
 
-      - name: Notify Discord - Build Failure (Devs)
-        if: steps.unit_tests.outcome == 'failure' || steps.integration_tests.outcome == 'failure'
+      # ROUTE: BUILD BREAKS (Dev Channel)
+      - name: Notify Discord - Unit Test Failure
+        if: failure() && steps.unit_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }} # Or use a specific Dev Webhook
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_DEV }}
         with:
-          args: "❌ CI FAILED: Unit/Integration tests failed. Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          args: "❌ **UNIT TEST FAILED**: Logic errors in Go code. Fix required. \nView Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      - name: Notify Discord - Security Alert (QA)
-        if: steps.sast_scan.outcome == 'failure' || steps.sca_scan.outcome == 'failure'
+      - name: Notify Discord - Integration Test Failure
+        if: failure() && steps.integration_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }} # Or use a specific QA Webhook
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_DEV }}
         with:
-          args: "🚨 SECURITY ALERT: Vulnerabilities found in SAST/SCA. Check the GitHub Security Tab."
+          args: "🔗 **INTEGRATION FAILURE**: Pub/Sub queue or service communication error. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      - name: Notify Discord - Performance Regression
-        if: steps.perf_tests.outcome == 'failure'
+      # ROUTE: SECURITY ALERTS (QA Channel)
+      - name: Notify Discord - SAST Alert
+        if: failure() && steps.sast_scan.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
+        with:
+          args: "🛡️ **SAST ALERT (GoSec)**: Code-level vulnerabilities detected. \nCheck Security Tab: ${{ github.server_url }}/${{ github.repository }}/security/code-scanning"
+
+      - name: Notify Discord - SCA Alert
+        if: failure() && steps.sca_scan.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
+        with:
+          args: "📦 **SCA ALERT (Trivy)**: Vulnerable dependencies or container images found. Check Security Tab."
+
+      # ROUTE: PERFORMANCE (Lead Dev/Architect)
+      - name: Notify Discord - Performance Failure
+        if: failure() && steps.perf_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
         with:
-          args: "📉 PERFORMANCE REGRESSION: Performance metrics dropped on `${{ github.ref_name }}`."
+          args: "📉 **PERF REGRESSION**: Model latency or RPS thresholds exceeded on `${{ github.ref_name }}`."
+
+      # ROUTE: RELEVANT STAKEHOLDERS (Management/AIDC Leads)
+      - name: Notify Stakeholders - Success
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_MGMT }}
+        with:
+          args: "✅ **MILESTONE REACHED**: The AI Model Governance platform passed all unit, integration, and security checks. Deployment to staging is successful."

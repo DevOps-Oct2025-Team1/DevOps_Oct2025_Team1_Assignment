@@ -22,9 +22,12 @@ import {
 import { cn } from "@/lib/utils"
 import type { Message, Conversation } from "@/lib/types"
 import { aiModels, sampleConversations } from "@/lib/data"
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedModel, setSelectedModel] = useState(aiModels[0])
   const [conversations, setConversations] = useState<Conversation[]>(sampleConversations)
   const [activeConversation, setActiveConversation] = useState<string | null>(null)
@@ -41,6 +44,43 @@ export default function DashboardPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  useEffect(() => {
+    const validateToken = async () => {
+      const token = localStorage.getItem('token')
+
+      if (!token) {
+        navigate('/')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch("http://localhost:8000/auth/validate", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ token })
+        })
+
+        const resp = await response.json()
+
+        if (resp.valid === true) {
+          setIsAuthenticated(true)
+        } else {
+          navigate('/')
+          setIsLoading(false)
+        }
+      } catch {
+        navigate('/')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    validateToken()
+  }, [navigate])
 
   const handleSendMessage = async () => {
     if (!input.trim()) return
@@ -94,7 +134,18 @@ export default function DashboardPage() {
 
   return (
     <div className="min-w-screen flex h-screen bg-background">
-      <aside
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background z-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Validating authentication...</p>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && isAuthenticated && (
+        <div className="flex w-full h-full">
+          <aside
         className={cn(
           "flex flex-col border-r border-border bg-card transition-all duration-300",
           sidebarOpen ? "w-72" : "w-0 overflow-hidden",
@@ -334,6 +385,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+        </div>
+      )}
     </div>
   )
 }

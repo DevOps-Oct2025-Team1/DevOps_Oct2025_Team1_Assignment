@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,35 +7,70 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sparkles, Mail, Lock } from 'lucide-react';
 
+const decodeJWT = (token: string): string | null => {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload));
+    return decoded.role || null;
+  } catch (err) {
+    console.error('Failed to decode JWT:', err);
+    return null;
+  }
+};
+
 export default function AILoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError('');
     setIsLoading(true);
 
-    setTimeout(async () => {
-      if (email && password) {
-        console.log('Login attempt:', { email, password });
-        const resp = await fetch("http://localhost:8000/auth/login", {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password
-            })
-        }).then(resp => resp.json());
-        console.log(resp);
-      } else {
-        setError('Please fill in all fields');
-      }
+    if (!email || !password) {
+      setError('Please fill in all fields');
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: email,
+          password: password
+        })
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+            setError("Invalid credentials");
+        } else {
+            setError("Network error. Please try again.");
+        }
+            return;
+    }
+      const resp = await response.json();
+      if (resp.token) {
+        localStorage.setItem('token', resp.token);
+        const role = decodeJWT(resp.token);
+        if (role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/user');
+        }
+      } else {
+        setError('Invalid credentials');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

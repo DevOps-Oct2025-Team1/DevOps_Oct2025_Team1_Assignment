@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Bot,
   Edit,
@@ -34,9 +35,13 @@ import {
 import { cn } from "@/lib/utils"
 import type { User } from "@/lib/types"
 import { initialUsers } from "@/lib/data"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 export default function AdminDashboard() {
+  const navigate = useNavigate()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [authError, setAuthError] = useState("")
   const [users, setUsers] = useState<User[]>(initialUsers)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -49,6 +54,52 @@ export default function AdminDashboard() {
     role: "user" as "user" | "admin",
     status: "active" as "active" | "inactive" | "suspended",
   })
+
+  useEffect(() => {
+    const validateToken = async () => {
+      const token = localStorage.getItem('token')
+      
+      if (!token) {
+        setAuthError("Please login to access the admin dashboard")
+        setTimeout(() => navigate('/'), 2000)
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch("http://localhost:8000/auth/validate", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ token })
+        })
+
+        const resp = await response.json()
+
+        if (resp.valid === true) {
+          if (resp.role === 'admin') {
+            setIsAuthenticated(true)
+          } else {
+            setAuthError("Access denied. Admin privileges required")
+            setTimeout(() => navigate('/user'), 2000)
+            setIsLoading(false)
+          }
+        } else {
+          setAuthError("Session expired. Please login again")
+          setTimeout(() => navigate('/'), 2000)
+          setIsLoading(false)
+        }
+      } catch {
+        setAuthError("Authentication error. Please login again")
+        setTimeout(() => navigate('/'), 2000)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    validateToken()
+  }, [navigate])
 
   const filteredUsers = users.filter(
     (user) =>
@@ -141,6 +192,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen min-w-screen bg-background">
+      {isLoading && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Validating authentication...</p>
+          </div>
+        </div>
+      )}
+
+      {authError && !isLoading && (
+        <div className="flex items-center justify-center min-h-screen p-4">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {!isLoading && !authError && isAuthenticated && (
+        <>
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="flex h-16 items-center justify-between px-6">
@@ -503,6 +573,8 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   )
 }

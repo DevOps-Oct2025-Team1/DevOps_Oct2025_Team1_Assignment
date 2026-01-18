@@ -1,40 +1,31 @@
 version: "3.9"
-
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: postgres-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+       POSTGRES_DB: ${POSTGRES_DB}
+       POSTGRES_USER: ${POSTGRES_USER}
+       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+       # Default user and admin
+       DEFAULT_TESTUSER_USERNAME: ${DEFAULT_TESTUSER_USERNAME}
+       DEFAULT_TESTUSER_PASSWORD: ${DEFAULT_TESTUSER_PASSWORD}
+       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d
+       - postgres_data:/var/lib/postgresql/data
+       - ./db/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - app-network
+      - backend-network
 
-  api-gateway:
-    build: ./services/api-gateway.service/
-    container_name: api-gateway
-    ports:
-      - "8000:8000"
-    depends_on:
-      - auth
-    networks:
-      - app-network
   auth:
     build: ./services/auth.service/
     container_name: auth-service
-    ports:
-      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -44,21 +35,41 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      JWT_SECRET: ${DB_SECERET}
+      JWT_SECRET: ${JWT_SECRET}
     networks:
-      - app-network
+      - backend-network
+
+  api-gateway:
+    build: ./services/api-gateway.service/
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth
+    environment:
+      AUTH_SERVICE_URL: http://auth:8001
+    networks:
+      - frontend-network
+      - backend-network
 
   frontend:
     build: ./app
     container_name: frontend
     ports:
       - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
     networks:
-      - app-network
+      - frontend-network
 
 volumes:
   postgres_data:
 
 networks:
-  app-network:
+  frontend-network:
     driver: bridge
+    name: public-network
+  backend-network:
+    driver: bridge
+    name: private-network
+    internal: true

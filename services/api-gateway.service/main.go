@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -31,9 +32,11 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	mux := http.NewServeMux()
+	auth_url := os.Getenv("AUTH_SERVICE_URL")
+
 
 	//Routes to Authentication service
-	mux.Handle("/auth/", http.StripPrefix("/auth", reverseProxy("http://auth:8000")))
+	mux.Handle("/auth/", http.StripPrefix("/auth", reverseProxy(auth_url)))
 
 	log.Println("API Gateway running on :8000")
 	log.Fatal(http.ListenAndServe(":8000", corsMiddleware(mux)))

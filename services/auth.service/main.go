@@ -17,6 +17,6 @@ func main() {
 	//Authorization
 	mux.HandleFunc("/validate", validateHandler)
 
-	log.Println("Auth service running on :8080")
-	log.Fatal(http.ListenAndServe(":8000", mux))
+	log.Println("Auth service running on :8001")
+	log.Fatal(http.ListenAndServe(":8001", mux))
 }

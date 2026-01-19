@@ -10,8 +10,5 @@ jobs:
       - name: Checking Docker containers
         uses: instrumenta/conftest-action@master
         with:
-          files: |
-            docker-compose.yml
-            app/Dockerfile
-            services/api-gateway.service/Dockerfile
+          files: docker-compose.yml
           policy: policies/containers

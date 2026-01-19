@@ -1,20 +1,14 @@
-package kubernetes.images
+package docker.compose
+import rego.v1
 
-allowed_images := {
-  "alpine",
-  "ubuntu",
-  "debian",
+version := to_number(input.version)
+
+deny contains msg if {
+	endswith(input.services[_].image, ":latest")
+	msg = "No images tagged latest"
 }
 
-deny[msg] {
-  image := input.spec.template.spec.containers[_].image
-  endswith(image, ":latest")
-  msg := sprintf("Image '%s' uses :latest tag", [image])
+deny contains msg if {
+	version < 3.5
+	msg = "Must be using at least version 3.5 of the Compose file format"
 }
-
-deny[msg] {
-  from := input.stages[_].from
-  not allowed_images[from]
-  msg := sprintf("Base image '%s' is not approved", [from])
-}
-

@@ -1,5 +1,4 @@
 package docker.compose
-import rego.v1
 
 version := to_number(input.version)
 

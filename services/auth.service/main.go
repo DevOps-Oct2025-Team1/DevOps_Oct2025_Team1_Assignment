@@ -1,4 +1,4 @@
-package main
+package auth_service
 
 import (
 	"log"
@@ -16,6 +16,9 @@ func main() {
 	mux.HandleFunc("/login", loginHandler)
 	//Authorization
 	mux.HandleFunc("/validate", validateHandler)
+
+	//REMEMBER TO REMOVE
+	mux.HandleFunc("/getAIModels", getAIModelsHandler)
 
 	log.Println("Auth service running on :8001")
 	log.Fatal(http.ListenAndServe(":8001", mux))

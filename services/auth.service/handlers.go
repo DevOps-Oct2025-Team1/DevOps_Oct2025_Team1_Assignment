@@ -1,4 +1,4 @@
-package main
+package auth_service
 
 import (
 	"database/sql"
@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"bytes"
+	"io"
 
 	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/lib/pq"
@@ -193,5 +195,47 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+func getAIModelsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"http://opa:8181/v1/data/ai/access/allowed_models",
+		bytes.NewBuffer(body),
+	)
+	if err != nil {
+		http.Error(w, "Failed to create OPA request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, "OPA unavailable", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	var opaResp map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&opaResp); err != nil {
+		http.Error(w, "Failed to decode OPA response", http.StatusInternalServerError)
+		return
+	}
+
+	// Return only the array
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(opaResp["result"])
+
 }
 

@@ -1,4 +1,4 @@
-FROM golang:1.25.5-alpine AS builder
+FROM golang:1.25.5-alpine
 
 WORKDIR /app
 
@@ -6,14 +6,12 @@ COPY go.mod ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth-service
 
-FROM alpine:3.20
+RUN go build -o auth-service
 
-WORKDIR /app
-COPY --from=builder /app/auth-service .
+RUN chmod +x ./auth-service
 
-EXPOSE 8000
+EXPOSE 8001
 
 CMD ["./auth-service"]
 

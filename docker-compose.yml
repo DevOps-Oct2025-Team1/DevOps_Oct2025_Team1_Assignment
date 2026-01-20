@@ -53,7 +53,7 @@ services:
       - backend-network
 
   opa:
-    image: openpolicyagent/opa:latest
+    image: openpolicyagent/opa
     container_name: opa
     command:
       - "run"
@@ -63,7 +63,7 @@ services:
       - "--set=decision_logs.console=true"
       - "/policies"
     volumes:
-      - ./policies:/policies:ro
+      - ./services/opa.service/modelFilter:/policies:ro
     networks:
       - backend-network
 
@@ -71,7 +71,7 @@ services:
     build: ./app
     container_name: frontend
     ports:
-      - "5173:5173"
+      - "4173:4173"
     environment:
       VITE_API_URL: http://localhost:8000
     networks:

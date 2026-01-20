@@ -1,11 +1,11 @@
-package api_gateway
+package main
 
 import (
 	"log"
-	"os"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 )
 
 func reverseProxy(target string) http.Handler {

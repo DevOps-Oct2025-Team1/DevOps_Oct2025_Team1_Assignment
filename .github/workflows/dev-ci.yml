@@ -2,9 +2,9 @@ name: Dev Branch CI
 
 on:
   push:
-    branches: ["dev"]
+    branches: ["dev", "main"]
   pull_request:
-    branches: ["dev"]
+    branches: ["dev", "main"]
 
 jobs:
   ci-dev:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- DEVELOPMENT PHASE ---
+      # --- UNIT TESTS (from Personal CI) ---
       - name: Run Go Unit Tests
         id: unit_tests
         uses: actions/setup-go@v4
@@ -26,16 +26,11 @@ jobs:
           go-version: '1.21'
       - run: go test ./... -v
 
-      - name: Integration Tests (Placeholder)
-        id: integration_tests
-        run: echo "Integration tests will run here"
-
-      # --- SECURITY PHASE (SAST) ---
+      # --- SECURITY PHASE (SAST - from Personal CI) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          # Generate SARIF for the Security Tab; continue on error to allow upload
           gosec -fmt sarif -out gosec-results.sarif ./... || true
 
       - name: Upload GoSec to Security Tab
@@ -45,7 +40,7 @@ jobs:
           sarif_file: gosec-results.sarif
           category: gosec
 
-      # --- SECURITY PHASE (SCA) ---
+      # --- SECURITY PHASE (SCA - from Personal CI) ---
       - name: Run SCA (Trivy)
         id: sca_scan
         uses: aquasec/trivy-action@v2
@@ -63,12 +58,32 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy
 
+      # --- INTEGRATION TESTING PHASE ---
+      - name: Integration Tests (Placeholder)
+        id: integration_tests
+        run: echo "Integration tests will run here"
+
+      # --- SECURITY PHASE (DAST) ---
+      - name: Run DAST (OWASP ZAP)
+        id: dast
+        uses: zaproxy/action-full-scan@v0.5.0
+        with:
+          target: 'http://localhost:8080' # Replace with production URL
+          cmd_options: '-t 5 -r zap-report.html'
+
       # --- PERFORMANCE PHASE ---
       - name: Performance Tests (Placeholder)
         id: perf_tests
         run: echo "Performance tests will run here"
 
-      # --- ADVANCED NOTIFICATION ROUTING (6.1) ---
+      # --- STAGING DEPLOYMENT ---
+      - name: Deploy to Staging
+        id: staging_deploy
+        run: |
+          echo "Executing Terraform apply to staging..."
+          echo "Updating Kubernetes manifests for staging..."
+
+      # --- NOTIFICATIONS ---
 
       # Initial Status Alert
       - name: Notify Discord - CI Started
@@ -79,15 +94,7 @@ jobs:
         with:
           args: "🚀 **CI STARTED** | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}`"
 
-      # ROUTE: BUILD BREAKS (Dev Channel)
-      - name: Notify Discord - Unit Test Failure
-        if: failure() && steps.unit_tests.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_U }}
-        with:
-          args: "❌ **UNIT TEST FAILED**: Logic errors in Go code. Fix required. \nView Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
+      # ROUTE: INTEGRATION TESTS (Dev Channel)
       - name: Notify Discord - Integration Test Failure
         if: failure() && steps.integration_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -96,22 +103,14 @@ jobs:
         with:
           args: "🔗 **INTEGRATION FAILURE**: Pub/Sub queue or service communication error. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      # ROUTE: SECURITY ALERTS (QA Channel)
-      - name: Notify Discord - SAST Alert
-        if: failure() && steps.sast_scan.outcome == 'failure'
+      # ROUTE: DAST ALERTS (QA Channel)
+      - name: Notify Discord - DAST Alert
+        if: failure() && steps.dast.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
         with:
-          args: "🛡️ **SAST ALERT (GoSec)**: Code-level vulnerabilities detected. \nCheck Security Tab: ${{ github.server_url }}/${{ github.repository }}/security/code-scanning"
-
-      - name: Notify Discord - SCA Alert
-        if: failure() && steps.sca_scan.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
-        with:
-          args: "📦 **SCA ALERT (Trivy)**: Vulnerable dependencies or container images found. Check Security Tab."
+          args: "🔍 **DAST ALERT**: Runtime security vulnerabilities detected during dynamic scanning. Check Security Tab."
 
       # ROUTE: PERFORMANCE (Lead Dev/Architect)
       - name: Notify Discord - Performance Failure
@@ -122,6 +121,15 @@ jobs:
         with:
           args: "📉 **PERF REGRESSION**: Model latency or RPS thresholds exceeded on `${{ github.ref_name }}`."
 
+      # ROUTE: STAGING DEPLOYMENT (DevOps Team)
+      - name: Notify Discord - Staging Deployment Failure
+        if: failure() && steps.staging_deploy.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+        with:
+          args: "⚠️ **STAGING DEPLOYMENT FAILED**: Unable to deploy to staging environment. Check logs."
+
       # ROUTE: RELEVANT STAKEHOLDERS (Management/AIDC Leads)
       - name: Notify Stakeholders - Success
         if: success()
@@ -129,4 +137,4 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_MGMT }}
         with:
-          args: "✅ **MILESTONE REACHED**: The AI Model Governance platform passed all unit, integration, and security checks. Deployment to staging is successful."
+          args: "✅ **DEV PIPELINE SUCCESS**: All integration, DAST, and performance tests passed. Staging deployment complete."

@@ -7,8 +7,36 @@ jobs:
     steps:
       - uses: actions/checkout@master
 
-      - name: Checking Docker containers
+      - name: Checking Docker Compose
         uses: instrumenta/conftest-action@master
         with:
           files: docker-compose.yml
           policy: policies/containers
+
+  policy-check:
+    name: "Policy Validation"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - name: "CI/CD Workflow Policies"
+            files: ".github/workflows/*.yml"
+            policy: "policies/cicd"
+            namespace: "cicd"
+          - name: "Dockerfile Policies"
+            files: "**/Dockerfile"
+            policy: "policies/docker"
+            namespace: "docker"
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Conftest/OPA - ${{ matrix.check.name }}
+        uses: instrumenta/conftest-action@master
+        with:
+          files: ${{ matrix.check.files }}
+          policy: ${{ matrix.check.policy }}
+          namespace: ${{ matrix.check.namespace }}
+          fail_on_warn: true
+

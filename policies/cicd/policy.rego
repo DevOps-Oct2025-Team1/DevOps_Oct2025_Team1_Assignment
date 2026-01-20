@@ -1,4 +1,4 @@
-package cicd.secrets
+package main
 
 deny[msg] {
   step := input.jobs[_].steps[_]

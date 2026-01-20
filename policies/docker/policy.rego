@@ -1,5 +1,4 @@
 package main
-import rego.v1
 
 version := to_number(input.version)
 

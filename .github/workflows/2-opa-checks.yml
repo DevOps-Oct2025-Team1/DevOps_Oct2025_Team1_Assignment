@@ -2,17 +2,6 @@ name: OPA Checks
 on: [push]
 
 jobs:
-  conftest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-
-      - name: Checking Docker Compose
-        uses: instrumenta/conftest-action@master
-        with:
-          files: docker-compose.yml
-          policy: policies/containers
-
   policy-check:
     name: "Policy Validation"
     runs-on: ubuntu-latest

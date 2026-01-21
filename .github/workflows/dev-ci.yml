@@ -18,47 +18,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- UNIT TESTS (from Personal CI) ---
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Run Go Unit Tests
-        id: unit_tests
-        run: go test ./... -v
-      # --- SECURITY PHASE (SAST - from Personal CI) ---
-      - name: Run Go SAST (GoSec)
-        id: sast_scan
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -fmt sarif -out gosec-results.sarif ./... || true
-
-      - name: Upload GoSec to Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: gosec-results.sarif
-          category: gosec
-
-      # --- SECURITY PHASE (SCA - from Personal CI) ---
-      - name: Run SCA (Trivy)
-        id: sca_scan
-        uses: aquasec/trivy-action@v2
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: CRITICAL,HIGH,MEDIUM
-
-      - name: Upload Trivy to Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy
-
       # --- INTEGRATION TESTING PHASE ---
       - name: Integration Tests (Placeholder)
         id: integration_tests

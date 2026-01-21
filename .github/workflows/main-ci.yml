@@ -41,7 +41,7 @@ jobs:
       # --- SECURITY PHASE (SCA - from Personal CI) ---
       - name: Run SCA (Trivy)
         id: sca
-        uses: aquasec/trivy-action@v2
+        uses: aquasec/trivy-action@v0.20.0
         with:
           scan-type: fs
           format: 'sarif'

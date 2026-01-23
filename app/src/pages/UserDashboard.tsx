@@ -40,6 +40,10 @@ export default function DashboardPage() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.reload();
+  };
 
   useEffect(() => {
     scrollToBottom()
@@ -214,7 +218,7 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-foreground">John Doe</p>
               <p className="text-xs text-muted-foreground">Free Plan</p>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleLogout}>
               <Settings className="h-4 w-4" />
             </Button>
           </div>

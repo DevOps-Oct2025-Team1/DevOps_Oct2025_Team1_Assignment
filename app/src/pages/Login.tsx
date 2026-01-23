@@ -36,7 +36,9 @@ export default function AILoginPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/auth/login", {
+      const api_gateway = import.meta.env.VITE_API_URL;
+
+      const response = await fetch(`${api_gateway}/auth/login`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json'

@@ -22,9 +22,11 @@ jobs:
           go-version: '1.21'
 
       - name: Run Linter
+        id: linter
         run: go vet ./...
 
       - name: Run Unit Tests
+        id: unit_tests
         run: go test ./... -v
 
       # --- SECURITY PHASE (SAST) ---
@@ -72,18 +74,60 @@ jobs:
             **Branch:** `${{ github.ref_name }}`
             **Commit:** `${{ github.event.head_commit.message }}`
 
-      - name: Notify Discord - CI Failed
-        if: failure()
+      - name: Notify Discord - Linter Failed
+        if: failure() && steps.linter.outcome == 'failure'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
         with:
           args: |
-            **CI FAILED: Quality Gate Not Met**
+            **CI FAILED: Linting Error**
             **Developer:** ${{ github.actor }}
             **Branch:** `${{ github.ref_name }}`
-            **Error:** Tests or Linting failed. 
-            **Action:** Please fix before opening a PR to `dev`.
+            **Error:** Code linting (go vet) failed. 
+            **Action:** Please fix linting issues before opening a PR to `dev`.
+            **Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Discord - Unit Tests Failed
+        if: failure() && steps.unit_tests.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_U }}
+        with:
+          args: |
+            **CI FAILED: Unit Tests Failed**
+            **Developer:** ${{ github.actor }}
+            **Branch:** `${{ github.ref_name }}`
+            **Error:** Unit tests failed. 
+            **Action:** Please fix failing tests before opening a PR to `dev`.
+            **Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Discord - SAST Failed
+        if: failure() && steps.sast_scan.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
+        with:
+          args: |
+            **CI FAILED: SAST Security Scan Failed**
+            **Developer:** ${{ github.actor }}
+            **Branch:** `${{ github.ref_name }}`
+            **Error:** GoSec detected security vulnerabilities in code. 
+            **Action:** Review Security Tab and fix vulnerabilities before opening a PR to `dev`.
+            **Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Discord - SCA Failed
+        if: failure() && steps.sca_scan.outcome == 'failure'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
+        with:
+          args: |
+            **CI FAILED: SCA Dependency Scan Failed**
+            **Developer:** ${{ github.actor }}
+            **Branch:** `${{ github.ref_name }}`
+            **Error:** Trivy detected vulnerable dependencies. 
+            **Action:** Update dependencies before opening a PR to `dev`.
             **Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Notify Discord - CI Success

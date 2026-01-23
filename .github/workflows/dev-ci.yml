@@ -39,6 +39,7 @@ jobs:
       # --- STAGING DEPLOYMENT ---
       - name: Deploy to Staging
         id: staging_deploy
+        if: github.ref == 'refs/heads/dev'
         run: |
           echo "Executing Terraform apply to staging..."
           echo "Updating Kubernetes manifests for staging..."

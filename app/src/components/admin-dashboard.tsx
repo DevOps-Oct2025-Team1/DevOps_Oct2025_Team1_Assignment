@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -27,32 +26,30 @@ import {
   Search,
   Trash2,
   Users,
-  Activity,
-  MessageSquare,
-  TrendingUp,
   Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { User } from "@/lib/types"
-import { initialUsers } from "@/lib/data"
+import { adminApi } from "@/lib/api"
 import { Link, useNavigate } from "react-router-dom"
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isUsersLoading, setIsUsersLoading] = useState(false)
   const [authError, setAuthError] = useState("")
-  const [users, setUsers] = useState<User[]>(initialUsers)
+  const [users, setUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [apiError, setApiError] = useState("")
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    role: "user" as "user" | "admin",
-    status: "active" as "active" | "inactive" | "suspended",
+    username: "",
+    password: "",
+    role: "user" as "user" | "admin" | "premium",
   })
 
   useEffect(() => {
@@ -60,7 +57,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem('token')
       
       if (!token) {
-        setAuthError("Please login to access the admin dashboard")
+        setAuthError("Please login to access admin dashboard")
         setTimeout(() => navigate('/'), 2000)
         setIsLoading(false)
         return
@@ -102,48 +99,77 @@ export default function AdminDashboard() {
     validateToken()
   }, [navigate])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUsers()
+    }
+  }, [isAuthenticated])
+
+  const fetchUsers = async () => {
+    setIsUsersLoading(true)
+    try {
+      const usersData = await adminApi.getUsers()
+      setUsers(usersData)
+    } catch (error) {
+      setApiError("Failed to fetch users")
+      alert("Failed to fetch users")
+    } finally {
+      setIsUsersLoading(false)
+    }
+  }
+
   const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleCreateUser = () => {
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      role: formData.role,
-      status: formData.status,
-      createdAt: new Date().toISOString().split("T")[0],
-      lastActive: new Date().toISOString().split("T")[0],
+  const handleCreateUser = async () => {
+    try {
+      const newUser = await adminApi.createUser(formData)
+      setUsers((prev) => [...prev, newUser])
+      setIsCreateDialogOpen(false)
+      setFormData({ username: "", password: "", role: "user" })
+      setApiError("")
+    } catch (error) {
+      setApiError("Failed to create user")
+      alert("Failed to create user")
     }
-    setUsers((prev) => [...prev, newUser])
-    setIsCreateDialogOpen(false)
-    setFormData({ name: "", email: "", role: "user", status: "active" })
   }
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!selectedUser) return
-    setUsers((prev) => prev.map((user) => (user.id === selectedUser.id ? { ...user, ...formData } : user)))
-    setIsEditDialogOpen(false)
-    setSelectedUser(null)
+    try {
+      const updatedUser = await adminApi.editUser(selectedUser.id, formData.role)
+      setUsers((prev) => prev.map((user) => (user.id === selectedUser.id ? updatedUser : user)))
+      setIsEditDialogOpen(false)
+      setSelectedUser(null)
+      setApiError("")
+    } catch (error) {
+      setApiError("Failed to update user")
+      alert("Failed to update user")
+    }
   }
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return
-    setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id))
-    setIsDeleteDialogOpen(false)
-    setSelectedUser(null)
+    try {
+      await adminApi.deleteUser(selectedUser.id)
+      setUsers((prev) => prev.filter((user) => user.id !== selectedUser.id))
+      setIsDeleteDialogOpen(false)
+      setSelectedUser(null)
+      setApiError("")
+    } catch (error) {
+      setApiError("Failed to delete user")
+      alert("Failed to delete user")
+    }
   }
 
   const openEditDialog = (user: User) => {
     setSelectedUser(user)
     setFormData({
-      name: user.name,
-      email: user.email,
+      username: user.username,
+      password: "",
       role: user.role,
-      status: user.status,
     })
     setIsEditDialogOpen(true)
   }
@@ -153,15 +179,13 @@ export default function AdminDashboard() {
     setIsDeleteDialogOpen(true)
   }
 
-  const getStatusBadgeVariant = (status: User["status"]) => {
-    switch (status) {
-      case "active":
-        return "default"
-      case "inactive":
-        return "secondary"
-      case "suspended":
-        return "destructive"
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
   }
 
   const stats = [
@@ -170,25 +194,7 @@ export default function AdminDashboard() {
       value: users.length,
       icon: Users,
       change: "+12%",
-    },
-    {
-      title: "Active Users",
-      value: users.filter((u) => u.status === "active").length,
-      icon: Activity,
-      change: "+8%",
-    },
-    {
-      title: "Total Conversations",
-      value: "2,451",
-      icon: MessageSquare,
-      change: "+23%",
-    },
-    {
-      title: "API Requests",
-      value: "48.2K",
-      icon: TrendingUp,
-      change: "+18%",
-    },
+    }
   ]
 
   return (
@@ -233,15 +239,19 @@ export default function AdminDashboard() {
                 User Dashboard
               </Button>
             </Link>
-            <Avatar className="h-9 w-9 border border-border">
-              <AvatarFallback className="bg-primary/10 text-primary">AD</AvatarFallback>
-            </Avatar>
           </nav>
         </div>
       </header>
 
       <main className="p-6">
         <div className="mx-auto max-w-7xl space-y-6">
+          {/* API Error Alert */}
+          {apiError && (
+            <Alert variant="destructive">
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Page Title */}
           <div className="flex items-center justify-between">
             <div>
@@ -250,7 +260,7 @@ export default function AdminDashboard() {
             </div>
             <Button
               onClick={() => {
-                setFormData({ name: "", email: "", role: "user", status: "active" })
+                setFormData({ username: "", password: "", role: "user" })
                 setIsCreateDialogOpen(true)
               }}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -293,80 +303,70 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">User</TableHead>
-                    <TableHead className="text-muted-foreground">Role</TableHead>
-                    <TableHead className="text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-muted-foreground">Created</TableHead>
-                    <TableHead className="text-muted-foreground">Last Active</TableHead>
-                    <TableHead className="text-right text-muted-foreground">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id} className="border-border">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-border">
-                            <AvatarFallback className="bg-secondary text-secondary-foreground">
-                              {user.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">{user.name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={user.role === "admin" ? "default" : "secondary"}
-                          className={cn(user.role === "admin" && "bg-primary text-primary-foreground")}
-                        >
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{user.createdAt}</TableCell>
-                      <TableCell className="text-muted-foreground">{user.lastActive}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-popover">
-                            <DropdownMenuItem onClick={() => openEditDialog(user)} className="cursor-pointer">
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openDeleteDialog(user)}
-                              className="cursor-pointer text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {filteredUsers.length === 0 && (
-                <div className="py-12 text-center">
-                  <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">No users found</p>
+              {isUsersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Username</TableHead>
+                        <TableHead className="text-muted-foreground">Role</TableHead>
+                        <TableHead className="text-muted-foreground">Created At</TableHead>
+                        <TableHead className="text-right text-muted-foreground">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.map((user) => (
+                        <TableRow key={user.id} className="border-border">
+                          <TableCell className="font-medium text-foreground">{user.username}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                user.role === "admin" ? "default" :
+                                user.role === "premium" ? "secondary" : "outline"
+                              }
+                              className={cn(user.role === "admin" && "bg-primary text-primary-foreground")}
+                            >
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(user.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-popover">
+                                <DropdownMenuItem onClick={() => openEditDialog(user)} className="cursor-pointer">
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openDeleteDialog(user)}
+                                  className="cursor-pointer text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {filteredUsers.length === 0 && !isUsersLoading && (
+                    <div className="py-12 text-center">
+                      <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">No users found</p>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -379,73 +379,52 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Create New User</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Add a new user to the platform. They will receive an email invitation.
+              Add a new user to the platform with username, password, and role.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name" className="text-foreground">
-                Name
+              <Label htmlFor="username" className="text-foreground">
+                Username
               </Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter full name"
+                id="username"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                placeholder="Enter username"
                 className="border-border bg-background text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email" className="text-foreground">
-                Email
+              <Label htmlFor="password" className="text-foreground">
+                Password
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
                 className="border-border bg-background text-foreground placeholder:text-muted-foreground"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="role" className="text-foreground">
-                  Role
-                </Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: "user" | "admin") => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger className="border-border bg-background text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status" className="text-foreground">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: "active" | "inactive" | "suspended") =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger className="border-border bg-background text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role" className="text-foreground">
+                Role
+              </Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger className="border-border bg-background text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -467,73 +446,39 @@ export default function AdminDashboard() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Edit User</DialogTitle>
+            <DialogTitle className="text-card-foreground">Edit User Role</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Update user information and permissions.
+              Update user role. Only the role can be changed.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-name" className="text-foreground">
-                Name
+              <Label className="text-foreground">
+                Username
               </Label>
               <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="border-border bg-background text-foreground"
+                value={formData.username}
+                disabled
+                className="border-border bg-muted text-muted-foreground"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-email" className="text-foreground">
-                Email
+              <Label htmlFor="edit-role" className="text-foreground">
+                Role
               </Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="border-border bg-background text-foreground"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-role" className="text-foreground">
-                  Role
-                </Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: "user" | "admin") => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger className="border-border bg-background text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-status" className="text-foreground">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: "active" | "inactive" | "suspended") =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger className="border-border bg-background text-foreground">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                value={formData.role}
+                onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger className="border-border bg-background text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -551,13 +496,13 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete User Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Delete User</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Are you sure you want to delete {selectedUser?.name}? This action cannot be undone.
+              Are you sure you want to delete user "{selectedUser?.username}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -568,7 +513,11 @@ export default function AdminDashboard() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteUser}>
+            <Button 
+              onClick={handleDeleteUser} 
+              variant="destructive"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete User
             </Button>
           </DialogFooter>

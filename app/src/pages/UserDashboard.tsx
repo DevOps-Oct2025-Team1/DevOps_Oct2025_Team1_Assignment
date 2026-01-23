@@ -56,7 +56,8 @@ export default function DashboardPage() {
       }
 
       try {
-        const response = await fetch("http://localhost:8000/auth/validate", {
+        const api_gateway = import.meta.env.VITE_API_URL;
+        const response = await fetch(`${api_gateway}/auth/validate`, {
           method: "POST",
           headers: {
             'Content-Type': 'application/json'

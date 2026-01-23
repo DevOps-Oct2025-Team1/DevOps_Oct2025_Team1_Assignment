@@ -13,7 +13,7 @@ FROM alpine:3.20
 WORKDIR /app
 COPY --from=builder /app/auth-service .
 
-EXPOSE 8000
+EXPOSE 8001
 
 CMD ["./auth-service"]
 

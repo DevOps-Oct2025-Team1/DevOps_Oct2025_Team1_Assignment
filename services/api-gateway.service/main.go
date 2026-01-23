@@ -34,7 +34,6 @@ func main() {
 	mux := http.NewServeMux()
 	auth_url := os.Getenv("AUTH_SERVICE_URL")
 
-
 	//Routes to Authentication service
 	mux.Handle("/auth/", http.StripPrefix("/auth", reverseProxy(auth_url)))
 

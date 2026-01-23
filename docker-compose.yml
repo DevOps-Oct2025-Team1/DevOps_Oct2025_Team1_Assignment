@@ -1,5 +1,6 @@
 version: "3.9"
 services:
+  # Database
   db:
     image: postgres:15-alpine
     container_name: postgres-db
@@ -24,6 +25,7 @@ services:
     networks:
       - backend-network
 
+  # Auth Microservice
   auth:
     build: ./services/auth.service/
     container_name: auth-service
@@ -40,6 +42,25 @@ services:
     networks:
       - backend-network
 
+  # Admin Microservice
+  admin:
+    build: ./services/admin.service/
+    container_name: admin-service
+    depends_on:
+      - auth
+      - db
+    environment:
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+    networks:
+      - backend-network
+
+  # API Gateway
   api-gateway:
     build: ./services/api-gateway.service/
     container_name: api-gateway
@@ -47,12 +68,15 @@ services:
       - "8000:8000"
     depends_on:
       - auth
+      - admin
     environment:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
     networks:
       - frontend-network
       - backend-network
 
+  # Frontend Application
   frontend:
     build: ./app
     container_name: frontend

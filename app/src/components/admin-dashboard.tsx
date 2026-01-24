@@ -223,10 +223,10 @@ export default function AdminDashboard() {
         <div className="flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-300">
                 <Bot className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-semibold text-foreground">nasdio</span>
+              <span className="text-xl font-semibold text-white">Orama</span>
             </Link>
             <Badge variant="outline" className="border-primary/50 text-primary">
               <Shield className="mr-1 h-3 w-3" />
@@ -235,7 +235,7 @@ export default function AdminDashboard() {
           </div>
           <nav className="flex items-center gap-2">
             <Link to="/user">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" className="text-white hover:text-white hover:bg-white/20">
                 User Dashboard
               </Button>
             </Link>
@@ -266,7 +266,7 @@ export default function AdminDashboard() {
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add User
+              <span className="text-white">Add User</span>
             </Button>
           </div>
 
@@ -337,7 +337,7 @@ export default function AdminDashboard() {
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -470,7 +470,7 @@ export default function AdminDashboard() {
                 value={formData.role}
                 onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
               >
-                <SelectTrigger className="border-border bg-background text-foreground">
+                <SelectTrigger className="border-border bg-gradient-to-br from-violet-500 to-purple-300 text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
@@ -485,12 +485,12 @@ export default function AdminDashboard() {
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
-              className="border-border text-foreground"
+              className="border-border text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
             >
               Cancel
             </Button>
-            <Button onClick={handleEditUser} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Save Changes
+            <Button onClick={handleEditUser} className="bg-gradient-to-br from-violet-500 to-purple-300 text-primary-foreground hover:bg-primary/90">
+              <span className="text-white">Save Changes</span>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -518,7 +518,7 @@ export default function AdminDashboard() {
               variant="destructive"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete User
+              <span className="text-white">Delete User</span>
             </Button>
           </DialogFooter>
         </DialogContent>

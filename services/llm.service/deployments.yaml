@@ -1,0 +1,251 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gemma3
+spec:
+  serviceName: "gemma3-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gemma3
+  template:
+    metadata:
+      labels:
+        app: gemma3
+    spec:
+      securityContext:
+        fsGroup: 100
+        runAsUser: 100
+        runAsGroup: 100
+      containers:
+      - name: llama-cpp
+        image: ghcr.io/ggml-org/llama.cpp:server
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ./llama-server \
+              --model /models/gemma-3-270m-it-Q4_0.gguf \
+              --host 0.0.0.0 \
+              --port 8000 \
+              --ctx-size 4096 \
+              --threads 2
+        ports:
+          - containerPort: 8000
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 100:100 /models && chmod 775 /models"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+      - name: download-model
+        image: curlimages/curl:8.6.0
+        command: ["/bin/sh", "-c"]
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        args:
+          - |
+            MODEL_FILE="/models/gemma-3-270m-it-Q4_0.gguf"
+            if [ -f "$MODEL_FILE" ] && [ "$(head -c 4 "$MODEL_FILE")" != "GGUF" ]; then
+              rm "$MODEL_FILE"
+            fi
+            if [ ! -f "$MODEL_FILE" ]; then
+              curl -L -o "$MODEL_FILE" \
+              https://huggingface.co/unsloth/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q4_0.gguf
+            fi
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+  volumeClaimTemplates:
+  - metadata:
+      name: model-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qwen3
+spec:
+  serviceName: "qwen3-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qwen3
+  template:
+    metadata:
+      labels:
+        app: qwen3
+    spec:
+      securityContext:
+        fsGroup: 100
+        runAsUser: 100
+        runAsGroup: 100
+      containers:
+      - name: llama-cpp
+        image: ghcr.io/ggml-org/llama.cpp:server
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ./llama-server \
+              --model /models/Qwen3-0.6B-Q8_0.gguf \
+              --host 0.0.0.0 \
+              --port 8000 \
+              --ctx-size 4096 \
+              --threads 2
+        ports:
+          - containerPort: 8000
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 100:100 /models && chmod 775 /models"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+      - name: download-model
+        image: curlimages/curl:8.6.0
+        command: ["/bin/sh", "-c"]
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        args:
+          - |
+            MODEL_FILE="/models/Qwen3-0.6B-Q8_0.gguf"
+            if [ -f "$MODEL_FILE" ] && [ "$(head -c 4 "$MODEL_FILE")" != "GGUF" ]; then
+              rm "$MODEL_FILE"
+            fi
+            if [ ! -f "$MODEL_FILE" ]; then
+              curl -L -o "$MODEL_FILE" \
+              https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf
+            fi
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+  volumeClaimTemplates:
+  - metadata:
+      name: model-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tinyllama
+spec:
+  serviceName: "tinyllama-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tinyllama
+  template:
+    metadata:
+      labels:
+        app: tinyllama
+    spec:
+      securityContext:
+        fsGroup: 100
+        runAsUser: 100
+        runAsGroup: 100
+      containers:
+      - name: llama-cpp
+        image: ghcr.io/ggml-org/llama.cpp:server
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ./llama-server \
+              --model /models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf \
+              --host 0.0.0.0 \
+              --port 8000 \
+              --ctx-size 4096 \
+              --threads 2
+        ports:
+          - containerPort: 8000
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 100:100 /models && chmod 775 /models"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+      - name: download-model
+        image: curlimages/curl:8.6.0
+        command: ["/bin/sh", "-c"]
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        args:
+          - |
+            MODEL_FILE="/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+            if [ -f "$MODEL_FILE" ] && [ "$(head -c 4 "$MODEL_FILE")" != "GGUF" ]; then
+              rm "$MODEL_FILE"
+            fi
+            if [ ! -f "$MODEL_FILE" ]; then
+              curl -L -o "$MODEL_FILE" \
+              https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+            fi
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+  volumeClaimTemplates:
+  - metadata:
+      name: model-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi

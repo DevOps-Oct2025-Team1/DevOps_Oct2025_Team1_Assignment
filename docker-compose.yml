@@ -42,23 +42,23 @@ services:
     networks:
       - backend-network
 
-  # Admin Microservice
-  admin:
-    build: ./services/admin.service/
-    container_name: admin-service
-    depends_on:
-      - auth
-      - db
-    environment:
-      DB_HOST: ${POSTGRES_HOST}
-      DB_PORT: ${POSTGRES_PORT}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
-    networks:
-      - backend-network
+  # # Admin Microservice
+  # admin:
+  #   build: ./services/admin.service/
+  #   container_name: admin-service
+  #   depends_on:
+  #     - auth
+  #     - db
+  #   environment:
+  #     DB_HOST: ${POSTGRES_HOST}
+  #     DB_PORT: ${POSTGRES_PORT}
+  #     DB_NAME: ${POSTGRES_DB}
+  #     DB_USER: ${POSTGRES_USER}
+  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+  #   networks:
+  #     - backend-network
 
   # API Gateway
   api-gateway:
@@ -68,7 +68,7 @@ services:
       - "8000:8000"
     depends_on:
       - auth
-      - admin
+      # - admin
     environment:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}

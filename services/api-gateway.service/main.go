@@ -32,15 +32,18 @@ func corsMiddleware(next http.Handler) http.Handler {
 func main() {
 	mux := http.NewServeMux()
 	auth_url := os.Getenv("AUTH_SERVICE_URL")
+<<<<<<< HEAD
 	// vllm_url := os.Getenv("VLLM_SERVICE_URL")
 	admin_url := os.Getenv("ADMIN_SERVICE_URL")
+=======
+>>>>>>> d8ab23c (feat: removed admin.service in favour of a more microservice design)
 
 	//Routes to Authentication service
 	mux.Handle("/auth/", http.StripPrefix("/auth", reverseProxy(auth_url)))
 	// mux.Handle("/vllm/", http.StripPrefix("/vllm", reverseProxy(vllm_url)))
 
 	//Routes to Admin service
-	mux.Handle("/admin/", http.StripPrefix("/admin", reverseProxy(admin_url)))
+	mux.Handle("/admin/", http.StripPrefix("/admin", reverseProxy(auth_url)))
 
 	log.Println("API Gateway running on :8000")
 	log.Fatal(http.ListenAndServe(":8000", corsMiddleware(mux)))

@@ -20,6 +20,7 @@ provider "registry.terraform.io/hashicorp/google" {
     "zh:f569b65999264a9416862bca5cd2a6177d94ccb0424f3a4ef424428912b9cb3c",
   ]
 }
+<<<<<<< HEAD
 
 provider "registry.terraform.io/hashicorp/kubernetes" {
   version     = "2.24.0"
@@ -60,3 +61,5 @@ provider "registry.terraform.io/hashicorp/local" {
     "zh:cc4cbcd67414fefb111c1bf7ab0bc4beb8c0b553d01719ad17de9a047adff4d1",
   ]
 }
+=======
+>>>>>>> de0cb15 (feat: added terraform autoscaler config)

@@ -23,22 +23,12 @@ jobs:
 
       - name: Run Linter
         id: linter
-        run: |
-          if [ -f "go.mod" ]; then
-            go vet ./...
-          else
-            echo "go.mod not found in root, skipping linter..."
-          fi
+        run: go vet ./...
 
       - name: Run Unit Tests
         id: unit_tests
-        run: |
-          if [ -f "go.mod" ]; then
-            go test ./... -v
-          else
-            echo "go.mod not found, skipping unit tests."
-          fi
-          
+        run: go test ./... -v
+
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan

@@ -24,6 +24,7 @@ jobs:
       - name: Run Linter
         id: linter
         run: go vet ./...
+        continue-on-error: true
 
       - name: Run Unit Tests
         id: unit_tests

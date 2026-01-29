@@ -13,11 +13,8 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - name: Checkout code (target feat/login-page)
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: feat/login-page
-
 
       - name: Set up Go (for Backend/Auth)
         uses: actions/setup-go@v4

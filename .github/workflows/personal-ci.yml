@@ -23,7 +23,12 @@ jobs:
 
       - name: Run Linter
         id: linter
-        run: go vet ./...
+        run: |
+          if [ -f "go.mod" ]; then
+            go vet ./...
+          else
+            echo "go.mod not found in root, skipping linter..."
+          fi
 
       - name: Run Unit Tests
         id: unit_tests

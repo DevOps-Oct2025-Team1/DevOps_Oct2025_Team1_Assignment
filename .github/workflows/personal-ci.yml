@@ -47,7 +47,7 @@ jobs:
       # --- SECURITY PHASE (SCA) ---
       - name: Run SCA (Trivy)
         id: sca_scan
-        uses: aquasec/trivy-action@master
+        uses: aquasecurity/trivy-action@master0.28.0
         with:
           scan-type: fs
           scan-ref: .

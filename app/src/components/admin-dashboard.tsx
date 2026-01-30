@@ -252,7 +252,7 @@ export default function AdminDashboard() {
               className="bg-primary text-primary-foreground hover:bg-primary/90 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
             >
               <Plus className="mr-2 h-4 w-4" />
-              <span className="text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">Add User</span>
+              <span className="text-white hover:text-black bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">Add User</span>
             </Button>
           </div>
 

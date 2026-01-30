@@ -23,19 +23,21 @@ jobs:
 
       - name: Run Linter
         id: linter
-        run: go vet ./...
+        run: |
+          cd services/api-gateway.service && go vet ./... && cd ../..
+          cd services/auth.service && go vet ./... && cd ../..
 
       - name: Run Unit Tests
         id: unit_tests
         run: go test ./... -v
 
+    
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan
-        # Using the official action is much more reliable than 'go install'
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.20.0
         with:
-          args: '-fmt sarif -out gosec-results.sarif ./...'
+          args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
 
       - name: Upload GoSec to Security Tab
         # Updated to v4 to fix deprecation

@@ -161,7 +161,7 @@ export default function DashboardPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-300">
               <Bot className="h-4 w-4 text-primary-foreground" color="black"/>
             </div>
-            <span className="font-semibold text-foreground">Orama</span>
+            <span className="font-semibold text-foreground">AIDC</span>
           </Link>
         </div>
 

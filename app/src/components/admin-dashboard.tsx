@@ -218,15 +218,14 @@ export default function AdminDashboard() {
 
       {!isLoading && !authError && isAuthenticated && (
         <>
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-300">
-                <Bot className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+                <Bot className="h-5 w-5 text-primary-foreground" /> 
               </div>
-              <span className="text-xl font-semibold text-white">Orama</span>
+              <span className="text-xl font-semibold text-black">AIDC</span>
             </Link>
             <Badge variant="outline" className="border-primary/50 text-primary">
               <Shield className="mr-1 h-3 w-3" />
@@ -235,7 +234,7 @@ export default function AdminDashboard() {
           </div>
           <nav className="flex items-center gap-2">
             <Link to="/user">
-              <Button variant="ghost" className="text-white hover:text-white hover:bg-white/20">
+              <Button variant="outline" className="text-white hover:bg-white/20 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
                 User Dashboard
               </Button>
             </Link>
@@ -245,32 +244,30 @@ export default function AdminDashboard() {
 
       <main className="p-6">
         <div className="mx-auto max-w-7xl space-y-6">
-          {/* API Error Alert */}
           {apiError && (
             <Alert variant="destructive">
               <AlertDescription>{apiError}</AlertDescription>
             </Alert>
           )}
 
-          {/* Page Title */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">User Management</h1>
               <p className="text-muted-foreground">Manage users, permissions, and access controls</p>
             </div>
             <Button
+              variant="outline"
               onClick={() => {
                 setFormData({ username: "", password: "", role: "user" })
                 setIsCreateDialogOpen(true)
               }}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
             >
               <Plus className="mr-2 h-4 w-4" />
-              <span className="text-white">Add User</span>
+              <span className="text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">Add User</span>
             </Button>
           </div>
 
-          {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat, i) => (
               <Card key={i} className="border-border bg-card">
@@ -337,7 +334,7 @@ export default function AdminDashboard() {
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300">
+                                <Button variant="ghost" size="icon" className="text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -373,9 +370,8 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Create New User</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -416,7 +412,7 @@ export default function AdminDashboard() {
                 value={formData.role}
                 onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
               >
-                <SelectTrigger className="border-border bg-background text-foreground">
+                <SelectTrigger className="text-white border-border bg-background bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
@@ -431,20 +427,22 @@ export default function AdminDashboard() {
             <Button
               variant="outline"
               onClick={() => setIsCreateDialogOpen(false)}
-              className="border-border text-foreground"
+              className="border-border text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateUser} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button
+                onClick={handleCreateUser} 
+                variant="outline"
+                className="text-primary-foreground bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
               Create User
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Edit User Role</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -470,7 +468,7 @@ export default function AdminDashboard() {
                 value={formData.role}
                 onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
               >
-                <SelectTrigger className="border-border bg-gradient-to-br from-violet-500 to-purple-300 text-foreground">
+                <SelectTrigger className="border-border bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
@@ -485,11 +483,11 @@ export default function AdminDashboard() {
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
-              className="border-border text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
+              className="border-border bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white"
             >
               Cancel
             </Button>
-            <Button onClick={handleEditUser} className="bg-gradient-to-br from-violet-500 to-purple-300 text-primary-foreground hover:bg-primary/90">
+            <Button onClick={handleEditUser} className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700" variant="outline">
               <span className="text-white">Save Changes</span>
             </Button>
           </DialogFooter>

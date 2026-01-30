@@ -158,8 +158,8 @@ export default function DashboardPage() {
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-300">
-              <Bot className="h-4 w-4 text-primary-foreground" color="black"/>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+              <Bot className="h-4 w-4 text-primary-foreground" color="white"/>
             </div>
             <span className="font-semibold text-foreground">AIDC</span>
           </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
         <div className="p-4">
           <Button
             onClick={handleNewChat}
-            className="w-full justify-start gap-2 text-foreground hover:bg-primary/90 bg-gradient-to-br from-violet-500 to-purple-300"
+            className="w-full justify-start gap-2 text-white hover:text-black hover:bg-primary/90 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
           >
             <Plus className="h-4 w-4" />
             New Chat
@@ -225,22 +225,20 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* Main Chat Area */}
       <main className="flex flex-1 flex-col">
-        {/* Header */}
         <header className="flex h-16 items-center justify-between border-b border-border px-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-muted-foreground hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
+              className="text-white hover:text-black bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
             >
               {sidebarOpen ? <PanelLeftClose className="h-5 w-5" color="black"/> : <PanelLeft className="h-5 w-5" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 border-border bg-card text-foreground hover:bg-accent bg-gradient-to-br from-violet-500 to-purple-300">
+                <Button variant="outline" className="gap-2 border-border bg-card text-white hover:text-black hover:bg-accent bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
                   <span className="text-lg">{selectedModel.icon}</span>
                   <span className="font-medium">{selectedModel.name}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -251,7 +249,7 @@ export default function DashboardPage() {
                   <DropdownMenuItem
                     key={model.id}
                     onClick={() => setSelectedModel(model)}
-                    className="cursor-pointer p-3"
+                    className="cursor-pointer p-3 text-white"
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-xl">{model.icon}</span>
@@ -270,7 +268,7 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-border text-black hover:text-foreground bg-gradient-to-br from-violet-500 to-purple-300"
+                className="border-border text-white hover:text-black bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
               >
                 Admin Panel
               </Button>
@@ -278,7 +276,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Messages Area */}
         <ScrollArea className="flex-1 p-6">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
@@ -300,7 +297,7 @@ export default function DashboardPage() {
                   <Button
                     key={i}
                     variant="outline"
-                    className="justify-start border-border text-left text-foreground hover:border-primary/50 hover:text-black bg-transparent bg-gradient-to-br from-violet-500 to-purple-300"
+                    className="justify-start border-border text-left text-white hover:border-primary/50 hover:text-black bg-transparent bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
                     onClick={() => setInput(prompt)}
                   >
                     {prompt}

@@ -206,59 +206,59 @@ export default function AdminDashboard() {
 
       {!isLoading && !authError && isAuthenticated && (
         <>
-          {/* Header */}
-          <header className="sticky top-0 z-50 border-b border-border bg-card">
-            <div className="flex h-14 items-center justify-between px-4">
-              <div className="flex items-center gap-3">
-                <Link to="/" className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                    <Bot className="h-4 w-4 text-primary-foreground" />
-                  </div>
-                  <span className="font-semibold text-foreground">AIDC</span>
-                </Link>
-                <Badge variant="outline" className="border-primary/50 text-primary">
-                  <Shield className="mr-1 h-3 w-3" />
-                  Admin
-                </Badge>
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+                <Bot className="h-5 w-5 text-primary-foreground" /> 
               </div>
-              <Link to="/user">
-                <Button variant="outline" size="sm">
-                  User Dashboard
-                </Button>
-              </Link>
+              <span className="text-xl font-semibold text-black">AIDC</span>
+            </Link>
+            <Badge variant="outline" className="border-primary/50 text-primary">
+              <Shield className="mr-1 h-3 w-3" />
+              Admin
+            </Badge>
+          </div>
+          <nav className="flex items-center gap-2">
+            <Link to="/user">
+              <Button variant="outline" className="text-white hover:bg-white/20 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+                User Dashboard
+              </Button>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <div className="mx-auto max-w-7xl space-y-6">
+          {apiError && (
+            <Alert variant="destructive">
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+              <p className="text-muted-foreground">Manage users, permissions, and access controls</p>
             </div>
-          </header>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFormData({ username: "", password: "", role: "user" })
+                setIsCreateDialogOpen(true)
+              }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">Add User</span>
+            </Button>
+          </div>
 
-          {/* Main Content */}
-          <main className="p-6">
-            <div className="mx-auto max-w-6xl space-y-6">
-              {apiError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{apiError}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Page Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">User Management</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Manage users, permissions, and access controls
-                  </p>
-                </div>
-                <Button
-                  onClick={() => {
-                    setFormData({ username: "", password: "", role: "user" })
-                    setIsCreateDialogOpen(true)
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add User
-                </Button>
-              </div>
-
-              {/* Stats Card */}
-              <Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {stats.map((stat, i) => (
+              <Card key={i} className="border-border bg-card">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Total Users
@@ -359,125 +359,157 @@ export default function AdminDashboard() {
             </div>
           </main>
 
-          {/* Create User Dialog */}
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-                <DialogDescription>
-                  Add a new user to the platform with username, password, and role.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="Enter username"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: "user" | "admin" | "premium") =>
-                      setFormData({ ...formData, role: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateUser}>Create User</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <DialogContent className="bg-card border-border" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">Create New User</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Add a new user to the platform with username, password, and role.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="username" className="text-foreground">
+                Username
+              </Label>
+              <Input
+                id="username"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                placeholder="Enter username"
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password" className="text-foreground">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role" className="text-foreground">
+                Role
+              </Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger className="text-white border-border bg-background bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(false)}
+              className="border-border text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            >
+              Cancel
+            </Button>
+            <Button
+                onClick={handleCreateUser} 
+                variant="outline"
+                className="text-primary-foreground bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700">
+              Create User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Edit User Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit User Role</DialogTitle>
-                <DialogDescription>
-                  Update user role. Only the role can be changed.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label>Username</Label>
-                  <Input value={formData.username} disabled className="bg-muted" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-role">Role</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: "user" | "admin" | "premium") =>
-                      setFormData({ ...formData, role: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleEditUser}>Save Changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-card border-border" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">Edit User Role</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Update user role. Only the role can be changed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label className="text-foreground">
+                Username
+              </Label>
+              <Input
+                value={formData.username}
+                disabled
+                className="border-border bg-muted text-muted-foreground"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-role" className="text-foreground">
+                Role
+              </Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value: "user" | "admin" | "premium") => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger className="border-border bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              className="border-border bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditUser} className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700" variant="outline">
+              <span className="text-white">Save Changes</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Delete User Dialog */}
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete User</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete user "{selectedUser?.username}"? This action
-                  cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleDeleteUser}>
-                  Delete User
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+      {/* Delete User Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">Delete User</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Are you sure you want to delete user "{selectedUser?.username}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              className="border-border text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteUser} 
+              variant="destructive"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <span className="text-white">Delete User</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
         </>
       )}
     </div>

@@ -94,10 +94,9 @@ export default function AILoginPage() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter username"
+                  placeholder="John Doe"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                   className="pl-10"
                 />
               </div>

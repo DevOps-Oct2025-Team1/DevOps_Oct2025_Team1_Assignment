@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/lib/pq"
@@ -75,10 +76,13 @@ func checkPassword(hashedPassword, password string) bool {
 }
 
 func generateJWT(username, role string) (string, error) {
+	if len(jwtSecret) == 0 {
+        return "", fmt.Errorf("JWT secret is not set")
+    }
 	claims := jwt.MapClaims{
 		"username": username,
 		"role":     role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		"exp":      time.Now().Add(time.Hour*1).Unix(),
 		"iat":      time.Now().Unix(),
 	}
 
@@ -110,6 +114,7 @@ func validateJWT(tokenString string) (bool, string) {
 	return true, ""
 }
 
+// HTTP Handlers
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

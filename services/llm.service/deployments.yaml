@@ -12,9 +12,8 @@ spec:
         gke-gcsfuse/ephemeral-storage-request: "50Mi"
         gke-gcsfuse/ephemeral-storage-limit: "1Gi"
     spec:
-      serviceAccountName: default # Ensure this SA has GCS access via Workload Identity
+      serviceAccountName: llm-downloader-service-account
       restartPolicy: OnFailure
-      organization: null
       containers:
       - name: downloader
         image: curlimages/curl:8.6.0
@@ -90,7 +89,7 @@ spec:
       labels:
         app: gemma3
     spec:
-      serviceAccountName: default
+      serviceAccountName: llm-service-account
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -174,7 +173,7 @@ spec:
       labels:
         app: qwen3
     spec:
-      serviceAccountName: default
+      serviceAccountName: llm-service-account
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -257,7 +256,7 @@ spec:
       labels:
         app: tinyllama
     spec:
-      serviceAccountName: default
+      serviceAccountName: llm-service-account
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

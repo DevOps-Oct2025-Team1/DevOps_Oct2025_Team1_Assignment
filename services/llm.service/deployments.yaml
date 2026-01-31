@@ -96,7 +96,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: llama-cpp
-        image: ghcr.io/ggml-org/llama.cpp:server
+        image: ghcr.io/ggml-org/llama.cpp:server-b7880
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -180,7 +180,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: llama-cpp
-        image: ghcr.io/ggml-org/llama.cpp:server
+        image: ghcr.io/ggml-org/llama.cpp:server-b7880
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -263,7 +263,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: llama-cpp
-        image: ghcr.io/ggml-org/llama.cpp:server
+        image: ghcr.io/ggml-org/llama.cpp:server-b7880
         command: ["/bin/sh", "-c"]
         args:
           - |

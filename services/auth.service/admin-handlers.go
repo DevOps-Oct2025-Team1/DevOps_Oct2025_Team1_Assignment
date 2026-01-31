@@ -42,7 +42,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Get auth service URL from environment
 		authURL := os.Getenv("AUTH_SERVICE_URL")
 		if authURL == "" {
-			authURL = "http://auth:8001" // fallback
+			authURL = "http://auth:8001"
 		}
 
 		// Call auth service validation endpoint
@@ -187,6 +187,11 @@ func editUserHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/users/")
 	userID, err := strconv.Atoi(path)
 	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if userID <= 0 {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}

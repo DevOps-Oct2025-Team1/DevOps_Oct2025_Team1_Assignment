@@ -4,9 +4,10 @@ import (
 	"os"
 	"testing"
 	"time"
-
+	"database/sql"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 // setupTestJWT initializes the JWT secret for testing
@@ -270,7 +271,7 @@ func TestCheckPassword_Invalid(t *testing.T) {
 
 // TestGetUserByUsername_Success verifies successful user retrieval
 func TestGetUserByUsername_Success(t *testing.T) {
-	mock, cleanup := setupTestDB(t)
+	mock, cleanup := setupAdminTestDB(t)
 	defer cleanup()
 
 	username := "testuser"
@@ -315,7 +316,7 @@ func TestGetUserByUsername_Success(t *testing.T) {
 
 // TestGetUserByUsername_NotFound verifies handling when user doesn't exist
 func TestGetUserByUsername_NotFound(t *testing.T) {
-	mock, cleanup := setupTestDB(t)
+	mock, cleanup := setupAdminTestDB(t)
 	defer cleanup()
 
 	username := "nonexistentuser"
@@ -342,7 +343,7 @@ func TestGetUserByUsername_NotFound(t *testing.T) {
 
 // TestGetUserByUsername_EmptyUsername verifies handling of empty username
 func TestGetUserByUsername_EmptyUsername(t *testing.T) {
-	mock, cleanup := setupTestDB(t)
+	mock, cleanup := setupAdminTestDB(t)
 	defer cleanup()
 
 	// Setup mock to return no rows for empty username

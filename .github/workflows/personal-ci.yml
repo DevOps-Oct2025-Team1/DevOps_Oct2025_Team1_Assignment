@@ -35,7 +35,7 @@ jobs:
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan
-        uses: securego/gosec@v2.20.0
+        uses: securego/gosec@532d8e4fed0ab297927651c01fb9b31c8ed6dfa8
         with:
           args: '-fmt sarif -out gosec-results.sarif ./...'
 
@@ -51,14 +51,13 @@ jobs:
       # --- SECURITY PHASE (SCA) ---
       - name: Run SCA (Trivy)
         id: sca_scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@f9b09506c713e83b3eda6fa91874d3823175a632
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          exit-code: '0'
 
       - name: Upload Trivy to Security Tab
         # Updated to v4 to fix deprecation

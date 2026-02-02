@@ -30,15 +30,13 @@ services:
   chats_db:
     image: postgres:15-alpine
     container_name: chats-db
-    ports:
-      - "${POSTGRES_PORT}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - chats_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d
+      - ./db/chats-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -46,7 +44,33 @@ services:
       retries: 5
     networks:
       - backend-network
-      - frontend-network
+
+  # Pub/Sub Emulator for local development
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: pubsub-emulator
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    networks:
+      - backend-network
+
+  # Mock LLM Services (for local development)
+  gemma3:
+    build: ./services/mock-llm.service/
+    container_name: mock-gemma3
+    environment:
+      MODEL_NAME: gemma3
+    networks:
+      - backend-network
+
+  qwen3:
+    build: ./services/mock-llm.service/
+    container_name: mock-qwen3
+    environment:
+      MODEL_NAME: qwen3
+    networks:
+      - backend-network
 
   # Auth Microservice
   auth:
@@ -83,6 +107,37 @@ services:
   #   networks:
   #     - backend-network
 
+  # Prompt Manager Microservice
+  prompt-manager:
+    build: ./services/prompt-manager.service/
+    container_name: prompt-manager
+    depends_on:
+      chats_db:
+        condition: service_healthy
+      pubsub-emulator:
+        condition: service_started
+      auth:
+        condition: service_started
+      gemma3:
+        condition: service_started
+      qwen3:
+        condition: service_started
+    environment:
+      DB_HOST: chats_db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      PUBSUB_PROJECT_ID: local-project
+      AUTH_SERVICE_URL: http://auth:8001
+      GEMMA3_SERVICE_URL: http://gemma3:8000
+      QWEN3_SERVICE_URL: http://qwen3:8000
+    ports:
+      - "8002:8002"
+    networks:
+      - backend-network
+
   # API Gateway
   api-gateway:
     build: ./services/api-gateway.service/
@@ -91,10 +146,12 @@ services:
       - "8000:8000"
     depends_on:
       - auth
+      - prompt-manager
       # - admin
     environment:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
+      PROMPT_MANAGER_SERVICE_URL: http://prompt-manager:8002
     networks:
       - frontend-network
       - backend-network

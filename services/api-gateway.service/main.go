@@ -33,10 +33,14 @@ func main() {
 	mux := http.NewServeMux()
 	auth_url := os.Getenv("AUTH_SERVICE_URL")
 <<<<<<< HEAD
+<<<<<<< HEAD
 	// vllm_url := os.Getenv("VLLM_SERVICE_URL")
 	admin_url := os.Getenv("ADMIN_SERVICE_URL")
 =======
 >>>>>>> d8ab23c (feat: removed admin.service in favour of a more microservice design)
+=======
+	prompt_manager_url := os.Getenv("PROMPT_MANAGER_SERVICE_URL")
+>>>>>>> c80a737 (feat: Add chats and messages with background worker for prompt-manager service)
 
 	//Routes to Authentication service
 	mux.Handle("/auth/", http.StripPrefix("/auth", reverseProxy(auth_url)))
@@ -44,6 +48,11 @@ func main() {
 
 	//Routes to Admin service
 	mux.Handle("/admin/", http.StripPrefix("/admin", reverseProxy(auth_url)))
+
+	//Routes to Prompt Manager service
+	mux.Handle("/chats/", http.StripPrefix("/chats", reverseProxy(prompt_manager_url+"/chats")))
+	mux.Handle("/chats", reverseProxy(prompt_manager_url))
+	mux.Handle("/models", reverseProxy(prompt_manager_url))
 
 	log.Println("API Gateway running on :8000")
 	log.Fatal(http.ListenAndServe(":8000", corsMiddleware(mux)))

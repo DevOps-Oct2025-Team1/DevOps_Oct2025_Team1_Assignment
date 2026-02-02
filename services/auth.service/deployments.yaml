@@ -33,6 +33,8 @@ spec:
               value: "${POSTGRES_PASSWORD}"
             - name: JWT_SECRET
               value: "${JWT_SECRET}"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:${AUTH_SERVICE_PORT}"
           resources:
             limits:
               memory: "128Mi"

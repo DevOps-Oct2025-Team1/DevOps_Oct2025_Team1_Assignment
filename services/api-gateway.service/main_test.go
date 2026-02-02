@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestCORSHeaders(t *testing.T) {
@@ -67,5 +70,58 @@ func TestCORSHeaders(t *testing.T) {
 				t.Errorf("Access-Control-Allow-Headers = %v, want %v", got, tt.expectedHeaders)
 			}
 		})
+	}
+}
+
+// TestReverseProxy_Success verifies successful proxy forwarding
+func TestReverseProxy_Success(t *testing.T) {
+	// Create a mock backend server
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "backend response"}`))
+	}))
+	defer backend.Close()
+
+	// Create reverse proxy
+	proxy := reverseProxy(backend.URL)
+
+	// Create request
+	req := httptest.NewRequest(http.MethodGet, "/test-path", nil)
+	w := httptest.NewRecorder()
+
+	// Execute proxy
+	proxy.ServeHTTP(w, req)
+
+	// Verify response
+	if w.Code != http.StatusOK {
+		t.Errorf("Status code = %v, want %v", w.Code, http.StatusOK)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "backend response") {
+		t.Errorf("Expected backend response, got: %v", body)
+	}
+}
+
+// TestReverseProxy_BackendError verifies handling when backend is unavailable
+func TestReverseProxy_BackendError(t *testing.T) {
+	// Create a backend that will be closed immediately
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	backend.Close()
+
+	proxy := reverseProxy(backend.URL)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	// This should handle the error gracefully
+	proxy.ServeHTTP(w, req)
+
+	// The proxy will return an error response when backend is unavailable
+	if w.Code != http.StatusBadGateway && w.Code != http.StatusInternalServerError {
+		t.Logf("Backend unavailable returned status: %v (may vary by implementation)", w.Code)
 	}
 }

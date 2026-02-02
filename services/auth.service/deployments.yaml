@@ -64,8 +64,8 @@ spec:
             httpGet:
               path: /health
               port: ${AUTH_SERVICE_PORT}
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
             successThreshold: 1
-            failureThreshold: 3
+            failureThreshold: 30

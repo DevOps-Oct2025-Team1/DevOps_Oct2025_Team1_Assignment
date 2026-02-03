@@ -2,38 +2,43 @@ import type { User, AIModel, Conversation } from "./types"
 
 export const aiModels: AIModel[] = [
   {
-    id: "gpt-4",
-    name: "GPT-4 Turbo",
-    provider: "OpenAI",
-    description: "Most capable GPT-4 model for complex tasks",
-    icon: "🟢",
-    maxTokens: 128000,
-  },
-  {
-    id: "claude-3",
-    name: "Claude 3 Opus",
-    provider: "Anthropic",
-    description: "Excellent for nuanced analysis and creative writing",
-    icon: "🟠",
-    maxTokens: 200000,
-  },
-  {
-    id: "gemini-pro",
-    name: "Gemini Pro",
+    id: "gemma3",
+    name: "Gemma 3",
     provider: "Google",
-    description: "Multimodal AI with strong reasoning capabilities",
+    description: "Lightweight, state-of-the-art open model from Google",
     icon: "🔵",
-    maxTokens: 32000,
+    maxTokens: 8192,
   },
   {
-    id: "llama-3",
-    name: "Llama 3 70B",
-    provider: "Meta",
-    description: "Open-source powerhouse for diverse applications",
+    id: "qwen3",
+    name: "Qwen 3",
+    provider: "Alibaba",
+    description: "Advanced multilingual model with strong reasoning",
     icon: "🟣",
     maxTokens: 8192,
   },
 ]
+
+// Helper to get model info by id
+export const getModelById = (id: string): AIModel | undefined => {
+  return aiModels.find(model => model.id === id)
+}
+
+// Helper to create AIModel from model id string
+export const createModelFromId = (id: string): AIModel => {
+  const existing = getModelById(id)
+  if (existing) return existing
+
+  // Fallback for unknown models
+  return {
+    id,
+    name: id.charAt(0).toUpperCase() + id.slice(1),
+    provider: "Unknown",
+    description: "AI model",
+    icon: "🤖",
+    maxTokens: 4096
+  }
+}
 
 export const initialUsers: User[] = [
   {

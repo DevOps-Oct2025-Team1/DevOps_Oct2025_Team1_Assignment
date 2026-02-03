@@ -16,10 +16,10 @@ type User struct {
 }
 
 type User_Auth struct {
-	ID 				int       `json:"id"`
-	Username  		string    `json:"username"`
-	PasswordHash 	string `json:passwordhash`
-	Role      		string    `json:"role"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"passwordhash"`
+	Role         string `json:"role"`
 }
 
 type CreateUserRequest struct {
@@ -55,6 +55,8 @@ func main() {
 	defer db.Close()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+
 	//Authentication
 	mux.HandleFunc("/login", loginHandler)
 	//Authorization
@@ -67,4 +69,9 @@ func main() {
 
 	log.Println("Auth service running on :8001")
 	log.Fatal(http.ListenAndServe(":8001", mux))
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

@@ -99,4 +99,4 @@ networks:
   backend-network:
     driver: bridge
     name: private-network
-    # internal: true  # Commented out for integration testing
+    internal: true  # For integration testing, override in docker-compose.test.yml

@@ -21,6 +21,8 @@ spec:
           ports:
             - containerPort: ${API_GATEWAY_PORT}
           env:
+            - name: PORT
+              value: "${API_GATEWAY_PORT}"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:8001"
             - name: ADMIN_SERVICE_URL

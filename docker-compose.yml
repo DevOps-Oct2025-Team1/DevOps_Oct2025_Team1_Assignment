@@ -1,9 +1,9 @@
 version: "3.9"
 services:
-  # Database
-  db:
+  # Auth Database
+  auth-db:
     image: postgres:15-alpine
-    container_name: postgres-db
+    container_name: auth-postgres-db
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:
@@ -25,7 +25,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - backend-network
+      - auth-network
       - frontend-network
   chats_db:
     image: postgres:15-alpine
@@ -45,7 +45,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - backend-network
+      - llm-network
 
   # Pub/Sub Emulator for local development
   pubsub-emulator:
@@ -55,7 +55,7 @@ services:
     ports:
       - "8085:8085"
     networks:
-      - backend-network
+      - llm-network
 
   # Mock LLM Services (for local development)
   gemma3:
@@ -64,7 +64,7 @@ services:
     environment:
       MODEL_NAME: gemma3
     networks:
-      - backend-network
+      - llm-network
 
   qwen3:
     build: ./k8s-local/mock-llm.service/
@@ -72,14 +72,14 @@ services:
     environment:
       MODEL_NAME: qwen3
     networks:
-      - backend-network
+      - llm-network
 
   # Auth Microservice
   auth:
     build: ./services/auth.service/
     container_name: auth-service
     depends_on:
-      db:
+      auth-db:
         condition: service_healthy
     environment:
       DB_HOST: ${POSTGRES_HOST}
@@ -89,26 +89,8 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     networks:
-      - backend-network
-
-  # # Admin Microservice
-  # admin:
-  #   build: ./services/admin.service/
-  #   container_name: admin-service
-  #   depends_on:
-  #     - auth
-  #     - db
-  #   environment:
-  #     DB_HOST: ${POSTGRES_HOST}
-  #     DB_PORT: ${POSTGRES_PORT}
-  #     DB_NAME: ${POSTGRES_DB}
-  #     DB_USER: ${POSTGRES_USER}
-  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
-  #     JWT_SECRET: ${JWT_SECRET}
-  #     AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
-  #   networks:
-  #     - backend-network
-
+      - auth-network
+  
   # Prompt Manager Microservice
   prompt-manager:
     build: ./services/prompt-manager.service/
@@ -138,7 +120,7 @@ services:
     ports:
       - "8002:8002"
     networks:
-      - backend-network
+      - llm-network
 
   # API Gateway
   api-gateway:
@@ -156,7 +138,8 @@ services:
       PROMPT_MANAGER_SERVICE_URL: http://prompt-manager:8002
     networks:
       - frontend-network
-      - backend-network
+      - auth-network
+      - llm-network
 
   frontend:
     build: ./app
@@ -164,6 +147,7 @@ services:
     ports:
       - "4173:4173"
     environment:
+      PORT: 5173
       VITE_API_URL: ${VITE_API_URL}
     networks:
       - frontend-network
@@ -176,7 +160,11 @@ networks:
   frontend-network:
     driver: bridge
     name: public-network
-  backend-network:
+  auth-network:
     driver: bridge
-    name: private-network
+    name: auth-network
+    internal: true
+  llm-network:
+    driver: bridge
+    name: llm-network
     internal: true

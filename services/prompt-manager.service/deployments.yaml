@@ -21,6 +21,8 @@ spec:
           ports:
             - containerPort: ${PROMPT_MANAGER_SERVICE_PORT}
           env:
+            - name: PORT
+              value: "${PROMPT_MANAGER_SERVICE_PORT}"
             - name: DB_HOST
               value: "chats-postgres-service"
             - name: DB_PORT

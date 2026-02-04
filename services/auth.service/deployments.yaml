@@ -21,6 +21,8 @@ spec:
           ports:
             - containerPort: ${AUTH_SERVICE_PORT}
           env:
+            - name: PORT
+              value: "${AUTH_SERVICE_PORT}"
             - name: DB_HOST
               value: "auth-postgres-service"
             - name: DB_PORT

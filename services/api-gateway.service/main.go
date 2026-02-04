@@ -54,6 +54,11 @@ func main() {
 	mux.Handle("/chats", reverseProxy(prompt_manager_url))
 	mux.Handle("/models", reverseProxy(prompt_manager_url))
 
-	log.Println("API Gateway running on :8000")
-	log.Fatal(http.ListenAndServe(":8000", corsMiddleware(mux)))
+	// Get port from environment or default to 8000
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8000"
+	}
+	log.Println("API Gateway running on :" + port)
+	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(mux)))
 }

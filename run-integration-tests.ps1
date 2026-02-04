@@ -37,7 +37,7 @@ Write-Host ""
 
 # Start database if not running
 Write-Host "Starting PostgreSQL database..." -ForegroundColor Yellow
-docker-compose up -d db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d db
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to start database" -ForegroundColor Red
     exit 1
@@ -53,8 +53,9 @@ $dbReady = $false
 
 while ($attempt -lt $maxAttempts -and -not $dbReady) {
     $attempt++
-    $status = docker-compose ps db --format json | ConvertFrom-Json
-    if ($status.Health -eq "healthy") {
+    # Use pg_isready inside the db container for robust health check
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB 2>$null
+    if ($LASTEXITCODE -eq 0) {
         $dbReady = $true
     } else {
         Start-Sleep -Seconds 1
@@ -65,7 +66,7 @@ while ($attempt -lt $maxAttempts -and -not $dbReady) {
 Write-Host ""
 if (-not $dbReady) {
     Write-Host "ERROR: Database did not become ready in time" -ForegroundColor Red
-    docker-compose logs db
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs db
     exit 1
 }
 Write-Host "[OK] Database is ready" -ForegroundColor Green
@@ -80,7 +81,8 @@ Write-Host "Running Auth Service Integration Tests" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Push-Location services\auth.service
+$authServicePath = Join-Path "services" "auth.service"
+Push-Location $authServicePath
 go test -v
 $authTestResult = $LASTEXITCODE
 Pop-Location
@@ -93,7 +95,8 @@ Write-Host "Running API Gateway Integration Tests" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Push-Location services\api-gateway.service
+$gatewayServicePath = Join-Path "services" "api-gateway.service"
+Push-Location $gatewayServicePath
 go test -v
 $gatewayTestResult = $LASTEXITCODE
 Pop-Location
@@ -124,7 +127,7 @@ Write-Host "Do you want to stop the database? (y/N): " -NoNewline -ForegroundCol
 $response = Read-Host
 if ($response -eq 'y' -or $response -eq 'Y') {
     Write-Host "Stopping database..." -ForegroundColor Yellow
-    docker-compose down
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml down
     Write-Host "[OK] Database stopped" -ForegroundColor Green
 }
 

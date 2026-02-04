@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,8 +16,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Setup test database connection
-func setupTestDB(t *testing.T) *sql.DB {
+// testContext holds test-specific database and JWT secret to avoid modifying global state
+type testContext struct {
+	db        *sql.DB
+	jwtSecret []byte
+	mu        sync.Mutex // Protects global state during test execution
+}
+
+// setupTestContext creates an isolated test environment with its own DB connection and JWT secret
+func setupTestContext(t *testing.T) *testContext {
 	// Use test database or main database for integration tests
 	connStr := "host=" + getEnv("DB_HOST", "localhost") +
 		" port=" + getEnv("DB_PORT", "5432") +
@@ -34,7 +42,39 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to ping test database: %v", err)
 	}
 
-	return testDB
+	return &testContext{
+		db:        testDB,
+		jwtSecret: []byte(getEnv("JWT_SECRET", "test-secret-key")),
+	}
+}
+
+// withTestContext temporarily sets global variables for a single handler execution
+// This prevents race conditions by using a mutex to serialize access to global state
+func (tc *testContext) withTestContext(fn func()) {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	// Save original global state
+	originalDB := db
+	originalJWTSecret := jwtSecret
+
+	// Set test-specific state
+	db = tc.db
+	jwtSecret = tc.jwtSecret
+
+	// Execute the handler
+	fn()
+
+	// Restore original state
+	db = originalDB
+	jwtSecret = originalJWTSecret
+}
+
+// Close cleans up the test context
+func (tc *testContext) Close() {
+	if tc.db != nil {
+		tc.db.Close()
+	}
 }
 
 func getEnv(key, fallback string) string {
@@ -45,8 +85,8 @@ func getEnv(key, fallback string) string {
 }
 
 // Clean up test data
-func cleanupTestData(t *testing.T, testDB *sql.DB, username string) {
-	_, err := testDB.Exec("DELETE FROM users WHERE username = $1", username)
+func cleanupTestData(t *testing.T, tc *testContext, username string) {
+	_, err := tc.db.Exec("DELETE FROM users WHERE username = $1", username)
 	if err != nil {
 		t.Logf("Warning: Failed to cleanup test user %s: %v", username, err)
 	}
@@ -55,25 +95,22 @@ func cleanupTestData(t *testing.T, testDB *sql.DB, username string) {
 // Test: User Login - Success
 func TestLoginHandler_Success(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
-
-	db = testDB
-	jwtSecret = []byte(getEnv("JWT_SECRET", "test-secret-key"))
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_login_user"
+	testUsername := "test_login_user_" + time.Now().Format("20060102150405999999999")
 	testPassword := "testpassword123"
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
 
-	_, err := testDB.Exec(
+	_, err := tc.db.Exec(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
 		testUsername, string(hashedPassword), "user",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	defer cleanupTestData(t, testDB, testUsername)
+	defer cleanupTestData(t, tc, testUsername)
 
 	// Create request
 	loginReq := LoginRequest{
@@ -86,7 +123,9 @@ func TestLoginHandler_Success(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	loginHandler(rr, req)
+	tc.withTestContext(func() {
+		loginHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -107,11 +146,8 @@ func TestLoginHandler_Success(t *testing.T) {
 // Test: User Login - Invalid Credentials
 func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
-
-	db = testDB
-	jwtSecret = []byte(getEnv("JWT_SECRET", "test-secret-key"))
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create request with wrong password
 	loginReq := LoginRequest{
@@ -124,7 +160,9 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	loginHandler(rr, req)
+	tc.withTestContext(func() {
+		loginHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusUnauthorized {
@@ -135,10 +173,15 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 // Test: JWT Validation - Valid Token
 func TestValidateHandler_ValidToken(t *testing.T) {
 	// Setup
-	jwtSecret = []byte(getEnv("JWT_SECRET", "test-secret-key"))
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Generate valid token
-	token, err := generateJWT("testuser", "admin")
+	var token string
+	var err error
+	tc.withTestContext(func() {
+		token, err = generateJWT("testuser", "admin")
+	})
 	if err != nil {
 		t.Fatalf("Failed to generate token: %v", err)
 	}
@@ -151,7 +194,9 @@ func TestValidateHandler_ValidToken(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	validateHandler(rr, req)
+	tc.withTestContext(func() {
+		validateHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -176,7 +221,8 @@ func TestValidateHandler_ValidToken(t *testing.T) {
 // Test: JWT Validation - Invalid Token
 func TestValidateHandler_InvalidToken(t *testing.T) {
 	// Setup
-	jwtSecret = []byte(getEnv("JWT_SECRET", "test-secret-key"))
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create request with invalid token
 	validateReq := ValidateRequest{Token: "invalid.token.here"}
@@ -186,7 +232,9 @@ func TestValidateHandler_InvalidToken(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	validateHandler(rr, req)
+	tc.withTestContext(func() {
+		validateHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -207,18 +255,17 @@ func TestValidateHandler_InvalidToken(t *testing.T) {
 // Test: Get All Users - Success (Admin)
 func TestGetUsersHandler_Success(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
-
-	db = testDB
-	jwtSecret = []byte(getEnv("JWT_SECRET", "test-secret-key"))
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create request
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 
 	// Execute
 	rr := httptest.NewRecorder()
-	getUsersHandler(rr, req)
+	tc.withTestContext(func() {
+		getUsersHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -238,13 +285,11 @@ func TestGetUsersHandler_Success(t *testing.T) {
 // Test: Create User - Success
 func TestCreateUserHandler_Success(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
+	tc := setupTestContext(t)
+	defer tc.Close()
 
-	db = testDB
-
-	testUsername := "test_create_user_" + time.Now().Format("20060102150405")
-	defer cleanupTestData(t, testDB, testUsername)
+	testUsername := "test_create_user_" + time.Now().Format("20060102150405999999999")
+	defer cleanupTestData(t, tc, testUsername)
 
 	// Create request
 	createReq := CreateUserRequest{
@@ -258,7 +303,9 @@ func TestCreateUserHandler_Success(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	createUserHandler(rr, req)
+	tc.withTestContext(func() {
+		createUserHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusCreated {
@@ -284,23 +331,21 @@ func TestCreateUserHandler_Success(t *testing.T) {
 // Test: Create User - Duplicate Username
 func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
+	tc := setupTestContext(t)
+	defer tc.Close()
 
-	db = testDB
-
-	testUsername := "test_duplicate_user"
+	testUsername := "test_duplicate_user_" + time.Now().Format("20060102150405999999999")
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
 	// Create initial user
-	_, err := testDB.Exec(
+	_, err := tc.db.Exec(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
 		testUsername, string(hashedPassword), "user",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create initial test user: %v", err)
 	}
-	defer cleanupTestData(t, testDB, testUsername)
+	defer cleanupTestData(t, tc, testUsername)
 
 	// Try to create duplicate
 	createReq := CreateUserRequest{
@@ -314,7 +359,9 @@ func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	createUserHandler(rr, req)
+	tc.withTestContext(func() {
+		createUserHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusConflict {
@@ -325,24 +372,22 @@ func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 // Test: Update User - Success
 func TestEditUserHandler_Success(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
-
-	db = testDB
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_edit_user"
+	testUsername := "test_edit_user_" + time.Now().Format("20060102150405999999999")
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
 	var userID int
-	err := testDB.QueryRow(
+	err := tc.db.QueryRow(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET role = $3 RETURNING id",
 		testUsername, string(hashedPassword), "user",
 	).Scan(&userID)
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	defer cleanupTestData(t, testDB, testUsername)
+	defer cleanupTestData(t, tc, testUsername)
 
 	// Create update request
 	updateReq := UpdateUserRequest{Role: "premium"}
@@ -352,7 +397,9 @@ func TestEditUserHandler_Success(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	editUserHandler(rr, req)
+	tc.withTestContext(func() {
+		editUserHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -360,9 +407,29 @@ func TestEditUserHandler_Success(t *testing.T) {
 			status, http.StatusOK, rr.Body.String())
 	}
 
+	// Validate response body
+	var updatedUser User
+	err = json.NewDecoder(rr.Body).Decode(&updatedUser)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify response contains correct data
+	if updatedUser.ID != userID {
+		t.Errorf("Expected user ID %d, got %d", userID, updatedUser.ID)
+	}
+
+	if updatedUser.Username != testUsername {
+		t.Errorf("Expected username '%s', got '%s'", testUsername, updatedUser.Username)
+	}
+
+	if updatedUser.Role != "premium" {
+		t.Errorf("Expected role 'premium', got '%s'", updatedUser.Role)
+	}
+
 	// Verify in database
 	var role string
-	err = testDB.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&role)
+	err = tc.db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&role)
 	if err != nil {
 		t.Fatalf("Failed to query updated user: %v", err)
 	}
@@ -375,17 +442,15 @@ func TestEditUserHandler_Success(t *testing.T) {
 // Test: Delete User - Success
 func TestDeleteUserHandler_Success(t *testing.T) {
 	// Setup
-	testDB := setupTestDB(t)
-	defer testDB.Close()
-
-	db = testDB
+	tc := setupTestContext(t)
+	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_delete_user_" + time.Now().Format("20060102150405")
+	testUsername := "test_delete_user_" + time.Now().Format("20060102150405999999999")
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
 	var userID int
-	err := testDB.QueryRow(
+	err := tc.db.QueryRow(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id",
 		testUsername, string(hashedPassword), "user",
 	).Scan(&userID)
@@ -398,7 +463,9 @@ func TestDeleteUserHandler_Success(t *testing.T) {
 
 	// Execute
 	rr := httptest.NewRecorder()
-	deleteUserHandler(rr, req)
+	tc.withTestContext(func() {
+		deleteUserHandler(rr, req)
+	})
 
 	// Assert
 	if status := rr.Code; status != http.StatusOK {
@@ -406,9 +473,25 @@ func TestDeleteUserHandler_Success(t *testing.T) {
 			status, http.StatusOK, rr.Body.String())
 	}
 
+	// Validate response body
+	var response map[string]interface{}
+	err = json.NewDecoder(rr.Body).Decode(&response)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify response contains expected fields
+	if msg, ok := response["message"].(string); !ok || msg == "" {
+		t.Error("Expected 'message' field in response")
+	}
+
+	if deletedID, ok := response["deleted_user_id"].(float64); !ok || int(deletedID) != userID {
+		t.Errorf("Expected 'deleted_user_id' to be %d, got %v", userID, response["deleted_user_id"])
+	}
+
 	// Verify deletion in database
 	var count int
-	err = testDB.QueryRow("SELECT COUNT(*) FROM users WHERE id = $1", userID).Scan(&count)
+	err = tc.db.QueryRow("SELECT COUNT(*) FROM users WHERE id = $1", userID).Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to verify deletion: %v", err)
 	}
@@ -420,10 +503,10 @@ func TestDeleteUserHandler_Success(t *testing.T) {
 
 // Test: Database Connection
 func TestDatabaseConnection(t *testing.T) {
-	testDB := setupTestDB(t)
-	defer testDB.Close()
+	tc := setupTestContext(t)
+	defer tc.Close()
 
-	err := testDB.Ping()
+	err := tc.db.Ping()
 	if err != nil {
 		t.Fatalf("Database connection failed: %v", err)
 	}

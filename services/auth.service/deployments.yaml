@@ -19,10 +19,10 @@ spec:
           image: ${AUTH_SERVICE_IMAGE}
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: ${AUTH_SERVICE_PORT}
+            - containerPort: 8001
           env:
             - name: PORT
-              value: "${AUTH_SERVICE_PORT}"
+              value: "8001"
             - name: DB_HOST
               value: "auth-postgres-service"
             - name: DB_PORT
@@ -36,7 +36,7 @@ spec:
             - name: JWT_SECRET
               value: "${JWT_SECRET}"
             - name: AUTH_SERVICE_URL
-              value: "http://auth-service:${AUTH_SERVICE_PORT}"
+              value: "http://auth-service:8001"
           resources:
             limits:
               memory: "128Mi"
@@ -47,7 +47,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: 8001
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -56,7 +56,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: 8001
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -65,7 +65,7 @@ spec:
           startupProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: 8001
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5

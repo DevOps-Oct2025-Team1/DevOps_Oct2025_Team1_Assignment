@@ -7,8 +7,8 @@ spec:
     app: prompt-manager-service
   ports:
     - protocol: TCP
-      port: ${PROMPT_MANAGER_SERVICE_PORT}
-      targetPort: ${PROMPT_MANAGER_SERVICE_PORT}
+      port: 8002
+      targetPort: 8002
 ---
 apiVersion: v1
 kind: Service

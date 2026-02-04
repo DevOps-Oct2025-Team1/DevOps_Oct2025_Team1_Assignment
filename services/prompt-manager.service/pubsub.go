@@ -10,11 +10,6 @@ import (
 	"cloud.google.com/go/pubsub"
 )
 
-const (
-	topicID        = "prompt-requests"
-	subscriptionID = "prompt-worker-sub"
-)
-
 var (
 	pubsubClient *pubsub.Client
 	topic        *pubsub.Topic
@@ -37,6 +32,10 @@ func initPubSub() error {
 	}
 
 	// Create topic if it doesn't exist
+	topicID := os.Getenv("PUBSUB_TOPIC_ID")
+	if topicID == "" {
+		topicID = "prompt-requests"
+	}
 	topic = pubsubClient.Topic(topicID)
 	exists, err := topic.Exists(ctx)
 	if err != nil {
@@ -54,6 +53,10 @@ func initPubSub() error {
 	}
 
 	// Create subscription if it doesn't exist
+	subscriptionID := os.Getenv("PUBSUB_SUBSCRIPTION_ID")
+	if subscriptionID == "" {
+		subscriptionID = "prompt-requests-sub"
+	}
 	sub := pubsubClient.Subscription(subscriptionID)
 	exists, err = sub.Exists(ctx)
 	if err != nil {

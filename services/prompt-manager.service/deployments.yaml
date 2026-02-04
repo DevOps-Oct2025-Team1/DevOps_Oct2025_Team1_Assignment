@@ -1,40 +1,46 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service
+  name: prompt-manager-service
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: auth-service
+      app: prompt-manager-service
   template:
     metadata:
       labels:
-        app: auth-service
+        app: prompt-manager-service
     spec:
-      serviceAccountName: auth-service-account
+      serviceAccountName: prompt-manager-service-account
       containers:
-        - name: auth-service
-          image: ${AUTH_SERVICE_IMAGE}
+        - name: prompt-manager-service
+          image: ${PROMPT_MANAGER_SERVICE_IMAGE}
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: ${AUTH_SERVICE_PORT}
+            - containerPort: ${PROMPT_MANAGER_SERVICE_PORT}
           env:
             - name: DB_HOST
-              value: "auth-postgres-service"
+              value: "chats-postgres-service"
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: "${POSTGRES_DB}"
+              value: "${CHATS_POSTGRES_DB}"
             - name: DB_USER
-              value: "${POSTGRES_USER}"
+              value: "${CHATS_POSTGRES_USER}"
             - name: DB_PASSWORD
-              value: "${POSTGRES_PASSWORD}"
-            - name: JWT_SECRET
-              value: "${JWT_SECRET}"
+              value: "${CHATS_POSTGRES_PASSWORD}"
             - name: AUTH_SERVICE_URL
               value: "http://auth-service:${AUTH_SERVICE_PORT}"
+            - name: PUBSUB_PROJECT_ID
+              value: "${PUBSUB_PROJECT_ID}"
+            - name: PUBSUB_EMULATOR_HOST
+              value: "${PUBSUB_EMULATOR_HOST}"
+            - name: GEMMA3_SERVICE_URL
+              value: "http://gemma3-service:8000"
+            - name: QWEN3_SERVICE_URL
+              value: "http://qwen3-service:8000"
           resources:
             limits:
               memory: "128Mi"
@@ -45,7 +51,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: ${PROMPT_MANAGER_SERVICE_PORT}
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -54,7 +60,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: ${PROMPT_MANAGER_SERVICE_PORT}
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -63,7 +69,7 @@ spec:
           startupProbe:
             httpGet:
               path: /health
-              port: ${AUTH_SERVICE_PORT}
+              port: ${PROMPT_MANAGER_SERVICE_PORT}
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5

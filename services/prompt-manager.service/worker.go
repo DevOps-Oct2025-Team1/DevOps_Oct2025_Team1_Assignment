@@ -66,6 +66,7 @@ func startWorker() {
 	go func() {
 		defer workerWg.Done()
 
+		subscriptionID := os.Getenv("PUBSUB_SUBSCRIPTION_ID")
 		sub := pubsubClient.Subscription(subscriptionID)
 		sub.ReceiveSettings.MaxOutstandingMessages = 10
 		sub.ReceiveSettings.NumGoroutines = 5

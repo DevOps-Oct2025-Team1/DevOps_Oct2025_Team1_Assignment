@@ -39,6 +39,10 @@ spec:
               value: "${PUBSUB_PROJECT_ID}"
             - name: PUBSUB_EMULATOR_HOST
               value: "${PUBSUB_EMULATOR_HOST}"
+            - name: PUBSUB_TOPIC_ID
+              value: "${PUBSUB_TOPIC_ID}"
+            - name: PUBSUB_SUBSCRIPTION_ID
+              value: "${PUBSUB_SUBSCRIPTION_ID}"
             - name: GEMMA3_SERVICE_URL
               value: "http://gemma3-service:8000"
             - name: QWEN3_SERVICE_URL

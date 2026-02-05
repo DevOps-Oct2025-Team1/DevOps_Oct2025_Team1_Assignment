@@ -26,7 +26,9 @@ echo ""
 # Load environment variables from .env file
 if [ -f .env ]; then
     echo -e "${YELLOW}Loading environment variables from .env...${NC}"
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    source .env
+    set +a
     echo -e "${GREEN}[OK] Environment variables loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: .env file not found. Using test defaults.${NC}"
@@ -76,6 +78,10 @@ echo ""
 
 # Override DB_HOST for local testing
 export DB_HOST="localhost"
+export DB_USER="$POSTGRES_USER"
+export DB_PASSWORD="$POSTGRES_PASSWORD"
+export DB_NAME="$POSTGRES_DB"
+export DB_PORT="$POSTGRES_PORT"
 
 # Run Auth Service Tests
 echo -e "${CYAN}========================================"

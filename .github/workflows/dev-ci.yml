@@ -18,32 +18,96 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- START SERVICES FOR DAST ---
+      # --- START SERVICES FOR DAST (Using Kubernetes) ---
+      - name: Set up Kind cluster
+        uses: helm/kind-action@v1.7.0
+        with:
+          version: v0.19.0
+          cluster_name: dev-cluster
+
       - name: Create .env file
         run: |
           cat > .env << EOF
           POSTGRES_DB=app_db
           POSTGRES_USER=app_user
           POSTGRES_PASSWORD=app_password
-          POSTGRES_HOST=db
+          POSTGRES_HOST=auth-postgres-service
           POSTGRES_PORT=5432
+          CHATS_POSTGRES_DB=chats_db
+          CHATS_POSTGRES_USER=chats_user
+          CHATS_POSTGRES_PASSWORD=chats_password
+          CHATS_POSTGRES_HOST=chats-postgres-service
+          CHATS_POSTGRES_PORT=5432
           DEFAULT_TESTUSER_USERNAME=testuser
           DEFAULT_TESTUSER_PASSWORD=testpass
           DEFAULT_ADMIN_USERNAME=admin
           DEFAULT_ADMIN_PASSWORD=adminpass
           JWT_SECRET=test-secret-key-for-ci
-          AUTH_SERVICE_URL=http://auth:8001
-          ADMIN_SERVICE_URL=http://auth:8001
+          AUTH_SERVICE_URL=http://auth-service:8001
+          ADMIN_SERVICE_URL=http://auth-service:8001
           VITE_API_URL=http://localhost:8000
+          PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+          PUBSUB_PROJECT_ID=local-project
           EOF
 
       - name: Build and Start Services
-        run: docker compose up -d --build
-
-      - name: Wait for Services
         run: |
-          echo "Waiting for API Gateway on port 8000..."
-          timeout 60s bash -c 'until curl -s http://localhost:8000; do sleep 2; done'
+          docker build -t auth:latest ./services/auth.service/
+          docker build -t api-gateway:latest ./services/api-gateway.service/
+          docker build -t frontend:latest ./app
+          kind load docker-image auth:latest api-gateway:latest frontend:latest --name dev-cluster
+          kubectl create namespace dev
+          
+          # Set environment variables for substitution
+          export AUTH_SERVICE_IMAGE=auth:latest
+          export API_GATEWAY_IMAGE=api-gateway:latest
+          export FRONTEND_IMAGE=frontend:latest
+          export POSTGRES_DB=app_db
+          export POSTGRES_USER=app_user
+          export POSTGRES_PASSWORD=app_password
+          export JWT_SECRET=test-secret-key-for-ci
+          export API_GATEWAY_IP=""
+          
+          # Generate manifests with envsubst, remove hardcoded namespaces, and apply to dev
+          kustomize build services/auth.service | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          kustomize build services/api-gateway.service | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          kustomize build app | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          
+          echo "Waiting for pods to be ready..."
+          kubectl get pods -n dev
+          kubectl wait --for=condition=Ready pod -l app=auth-postgres-db -n dev --timeout=180s || (kubectl describe pod -l app=auth-postgres-db -n dev && kubectl logs -l app=auth-postgres-db -n dev --tail=50)
+          kubectl wait --for=condition=Ready pod -l app=auth-service -n dev --timeout=180s || (kubectl describe pod -l app=auth-service -n dev && kubectl logs -l app=auth-service -n dev --tail=50)
+          kubectl wait --for=condition=Ready pod -l app=api-gateway -n dev --timeout=180s || (kubectl describe pod -l app=api-gateway -n dev && kubectl logs -l app=api-gateway -n dev --tail=50)
+          kubectl get pods -n dev
+
+      - name: Port Forward for DAST
+        run: |
+          echo "Setting up port-forward to API Gateway..."
+          kubectl port-forward -n dev svc/api-gateway 8000:8000 > /tmp/portforward.log 2>&1 &
+          PF_PID=$!
+          echo "PORT_FORWARD_PID=$PF_PID" >> $GITHUB_ENV
+          sleep 5
+          
+          echo "Testing connection to API Gateway..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000 > /dev/null 2>&1; then
+              echo "✓ API Gateway is reachable on port 8000"
+              curl -v http://localhost:8000 2>&1 | head -20
+              break
+            fi
+            echo "Waiting for API Gateway... ($i/30)"
+            sleep 2
+          done
+          
+          # Show port-forward logs if connection failed
+          if ! curl -s http://localhost:8000 > /dev/null 2>&1; then
+            echo "❌ API Gateway not reachable after 60s"
+            echo "Port-forward logs:"
+            cat /tmp/portforward.log
+            kubectl get pods -n dev
+            kubectl logs -n dev -l app=api-gateway --tail=50
+            exit 1
+          fi
 
       # --- INTEGRATION TESTING PHASE ---
       - name: Integration Tests (Placeholder)
@@ -71,7 +135,9 @@ jobs:
 
       - name: Shutdown Services
         if: always()
-        run: docker compose down
+        run: |
+          if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID 2>/dev/null || true; fi
+          kind delete cluster --name dev-cluster
 
       # --- PERFORMANCE PHASE ---
       - name: Performance Tests (Placeholder)

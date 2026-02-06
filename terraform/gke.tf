@@ -1,12 +1,13 @@
 resource "google_container_cluster" "devops-gke" {
   name                     = "devops-gke"
-  location                 = "${local.region}-a"
+  location                 = local.region
   network                  = google_compute_network.devops-vpc.id
   subnetwork               = google_compute_subnetwork.devops-subnet-private.id
   networking_mode          = "VPC_NATIVE"
   deletion_protection      = false
   remove_default_node_pool = true
   initial_node_count       = 1
+  node_locations           = local.gke_zones
 
   ip_allocation_policy {
     cluster_secondary_range_name  = "pods"
@@ -29,17 +30,31 @@ resource "google_container_cluster" "devops-gke" {
   workload_identity_config {
     workload_pool = "${local.project_id}.svc.id.goog"
   }
+
+  cluster_autoscaling {
+    enabled = true
+    resource_limits {
+      resource_type = "cpu"
+      minimum       = 1
+      maximum       = 6
+    }
+    resource_limits {
+      resource_type = "memory"
+      minimum       = 2
+      maximum       = 12
+    }
+  }
 }
 
 resource "google_container_node_pool" "devops-node-pool" {
-  name     = "devops-node-pool"
-  cluster  = google_container_cluster.devops-gke.name
-  location = local.region
-  node_count         = 3
+  name       = "devops-node-pool"
+  cluster    = google_container_cluster.devops-gke.name
+  location   = local.region
+  node_count = 1
 
   autoscaling {
-    min_node_count = 2
-    max_node_count = 4
+    min_node_count = 1
+    max_node_count = 2
   }
 
   management {
@@ -48,68 +63,37 @@ resource "google_container_node_pool" "devops-node-pool" {
   }
 
   node_config {
-    machine_type    = "e2-standard-4"
-    disk_size_gb    = 30
+    machine_type = "e2-medium"
+    disk_type    = "pd-standard"
+    disk_size_gb = 30
+
     service_account = google_service_account.devops_compute_gke_user.email
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
 
     workload_metadata_config {
       mode = "GKE_METADATA"
     }
+
+    labels = merge(local.common_labels, {
+      "node-pool" = "devops-node-pool"
+    })
+  }
+
+  upgrade_settings {
+    max_surge       = 1
+    max_unavailable = 0
   }
 }
 
-resource "kubernetes_service" "frontend" {
-  metadata {
-    name      = "frontend"
-    namespace = "default"
-  }
-
-  spec {
-    type = "LoadBalancer"
-
-    port {
-      name        = "http"
-      port        = 80
-      target_port = 80
-      protocol    = "TCP"
-    }
-
-    selector = {
-      app = "frontend"
-    }
-  }
+output "cluster_name" {
+  value = google_container_cluster.devops-gke.name
 }
 
-resource "kubernetes_service" "api_gateway" {
-  metadata {
-    name      = "api-gateway"
-    namespace = "default"
-  }
-
-  spec {
-    type = "LoadBalancer"
-
-    port {
-      port        = 8080
-      target_port = 8080
-    }
-
-    selector = {
-      app = "api-gateway"
-    }
-  }
+output "cluster_endpoint" {
+  value     = google_container_cluster.devops-gke.endpoint
+  sensitive = true
 }
 
-resource "kubernetes_service_account_v1" "default" {
-  metadata {
-    name      = "default"
-    namespace = "default"
-    annotations = {
-      "iam.gke.io/gcp-service-account" = google_service_account.devops_compute_gke_user.email
-    }
-  }
-
-  automount_service_account_token = true
+output "get_credentials_command" {
+  value = "gcloud container clusters get-credentials ${google_container_cluster.devops-gke.name} --region ${local.region} --project ${local.project_id}"
 }
-

@@ -1,6 +1,9 @@
 locals {
-  project_id = "dop-assignment-team1"
-  region     = "us-west1"
+  project_id = "dop-assignment-team1-staging"
+  region     = "asia-southeast1"
+  gke_zones = [
+    "${local.region}-a",
+  ]
   apis = [
     "compute.googleapis.com",
     "container.googleapis.com",
@@ -15,4 +18,8 @@ locals {
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
   ]
+  common_labels = {
+    "managed-by" = "terraform"
+    "project"    = "devops"
+  }
 }

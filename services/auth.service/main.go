@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -16,10 +17,10 @@ type User struct {
 }
 
 type User_Auth struct {
-	ID 				int       `json:"id"`
-	Username  		string    `json:"username"`
-	PasswordHash 	string `json:passwordhash`
-	Role      		string    `json:"role"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"passwordhash"`
+	Role         string `json:"role"`
 }
 
 type CreateUserRequest struct {
@@ -55,6 +56,8 @@ func main() {
 	defer db.Close()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+
 	//Authentication
 	mux.HandleFunc("/login", loginHandler)
 	//Authorization
@@ -65,6 +68,16 @@ func main() {
 	mux.HandleFunc("PUT /users/", authMiddleware(editUserHandler))
 	mux.HandleFunc("DELETE /users/", authMiddleware(deleteUserHandler))
 
-	log.Println("Auth service running on :8001")
-	log.Fatal(http.ListenAndServe(":8001", mux))
+	// Get port from environment or default to 8001
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8001"
+	}
+	log.Println("Auth service running on :" + port)
+	log.Fatal(http.ListenAndServe(":"+port, mux))
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

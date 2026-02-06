@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: auth-postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-postgres-db
+  labels:
+    app: auth-postgres-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-postgres-db
+  template:
+    metadata:
+      labels:
+        app: auth-postgres-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: "${POSTGRES_DB}"
+            - name: POSTGRES_USER
+              value: "${POSTGRES_USER}"
+            - name: POSTGRES_PASSWORD
+              value: "${POSTGRES_PASSWORD}"
+            - name: DEFAULT_TESTUSER_USERNAME
+              value: "${DEFAULT_TESTUSER_USERNAME}"
+            - name: DEFAULT_TESTUSER_PASSWORD
+              value: "${DEFAULT_TESTUSER_PASSWORD}"
+            - name: DEFAULT_ADMIN_USERNAME
+              value: "${DEFAULT_ADMIN_USERNAME}"
+            - name: DEFAULT_ADMIN_PASSWORD
+              value: "${DEFAULT_ADMIN_PASSWORD}"
+          volumeMounts:
+            - name: auth-postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - "${POSTGRES_USER}"
+                - -d
+                - "${POSTGRES_DB}"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: auth-postgres-data
+          persistentVolumeClaim:
+            claimName: auth-postgres-pvc
+        - name: init-scripts
+          configMap:
+            name: auth-postgres-init-scripts
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-auth-to-auth-postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: auth-postgres-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: auth-service
+      ports:
+        - protocol: TCP
+          port: 5432

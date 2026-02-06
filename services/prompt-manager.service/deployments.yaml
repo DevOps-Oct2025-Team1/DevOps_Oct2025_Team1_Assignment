@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prompt-manager-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prompt-manager-service
+  template:
+    metadata:
+      labels:
+        app: prompt-manager-service
+    spec:
+      serviceAccountName: prompt-manager-service-account
+      containers:
+        - name: prompt-manager-service
+          image: ${PROMPT_MANAGER_SERVICE_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8002
+          env:
+            - name: PORT
+              value: "8002"
+            - name: DB_HOST
+              value: "chats-postgres-service"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "${CHATS_POSTGRES_DB}"
+            - name: DB_USER
+              value: "${CHATS_POSTGRES_USER}"
+            - name: DB_PASSWORD
+              value: "${CHATS_POSTGRES_PASSWORD}"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:8001"
+            - name: PUBSUB_PROJECT_ID
+              value: "${PUBSUB_PROJECT_ID}"
+            - name: PUBSUB_EMULATOR_HOST
+              value: "${PUBSUB_EMULATOR_HOST}"
+            - name: PUBSUB_TOPIC_ID
+              value: "${PUBSUB_TOPIC_ID}"
+            - name: PUBSUB_SUBSCRIPTION_ID
+              value: "${PUBSUB_SUBSCRIPTION_ID}"
+            - name: GEMMA3_SERVICE_URL
+              value: "http://gemma3-service:8000"
+            - name: QWEN3_SERVICE_URL
+              value: "http://qwen3-service:8000"
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "256m"
+            requests:
+              memory: "64Mi"
+              cpu: "128m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 30

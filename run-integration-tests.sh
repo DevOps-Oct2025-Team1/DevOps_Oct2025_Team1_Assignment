@@ -7,7 +7,7 @@ CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m' # No Colo
 
 echo -e "${CYAN}========================================"
 echo -e "Backend Integration Tests Runner"
@@ -26,9 +26,8 @@ echo ""
 # Load environment variables from .env file
 if [ -f .env ]; then
     echo -e "${YELLOW}Loading environment variables from .env...${NC}"
-    set -a
-    source .env
-    set +a
+    # Export variables for docker-compose (same as PowerShell approach)
+    export $(grep -v '^#' .env | grep -v '^[[:space:]]*$' | xargs -d '\n')
     echo -e "${GREEN}[OK] Environment variables loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: .env file not found. Using test defaults.${NC}"
@@ -43,7 +42,7 @@ echo ""
 
 # Start database if not running
 echo -e "${YELLOW}Starting PostgreSQL database...${NC}"
-if ! docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d db; then
+if ! docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d auth-db; then
     echo -e "${RED}ERROR: Failed to start database${NC}"
     exit 1
 fi
@@ -59,7 +58,7 @@ db_ready=false
 while [ $attempt -lt $max_attempts ] && [ "$db_ready" = false ]; do
     attempt=$((attempt + 1))
     # Use pg_isready inside the db container for robust health check
-    if docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
+    if docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T auth-db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
         db_ready=true
     else
         sleep 1
@@ -70,18 +69,27 @@ done
 echo ""
 if [ "$db_ready" = false ]; then
     echo -e "${RED}ERROR: Database did not become ready in time${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs db
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs auth-db
     exit 1
 fi
 echo -e "${GREEN}[OK] Database is ready${NC}"
 echo ""
 
-# Override DB_HOST for local testing
-export DB_HOST="localhost"
-export DB_USER="$POSTGRES_USER"
-export DB_PASSWORD="$POSTGRES_PASSWORD"
-export DB_NAME="$POSTGRES_DB"
-export DB_PORT="$POSTGRES_PORT"
+# Load test.env for auth service tests
+if [ -f "services/auth.service/test.env" ]; then
+    echo -e "${YELLOW}Loading auth service test environment variables...${NC}"
+    export $(grep -v '^#' services/auth.service/test.env | grep -v '^[[:space:]]*$' | xargs -d '\n')
+    echo -e "${GREEN}[OK] Auth test environment loaded${NC}"
+else
+    echo -e "${YELLOW}WARNING: test.env not found for auth service, using .env values${NC}"
+    # Map POSTGRES_* variables to DB_* variables for tests
+    export DB_HOST="localhost"
+    export DB_USER="$POSTGRES_USER"
+    export DB_PASSWORD="$POSTGRES_PASSWORD"
+    export DB_NAME="$POSTGRES_DB"
+    export DB_PORT="$POSTGRES_PORT"
+fi
+echo ""
 
 # Run Auth Service Tests
 echo -e "${CYAN}========================================"

@@ -2,14 +2,13 @@
 # This file overrides docker-compose.yml settings for testing purposes
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.test.yml up
 
-version: "3.9"
 services:
   # Expose database port for host-side integration tests
-  db:
+  auth-db:
     ports:
       - "5432:5432"
 
 networks:
-  # Allow external access to backend network for integration testing
-  backend-network:
+  # Allow external access to auth network for integration testing
+  auth-network:
     internal: false

@@ -37,7 +37,7 @@ Write-Host ""
 
 # Start database if not running
 Write-Host "Starting PostgreSQL database..." -ForegroundColor Yellow
-docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d auth-db
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to start database" -ForegroundColor Red
     exit 1
@@ -54,7 +54,7 @@ $dbReady = $false
 while ($attempt -lt $maxAttempts -and -not $dbReady) {
     $attempt++
     # Use pg_isready inside the db container for robust health check
-    docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB 2>$null
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T auth-db pg_isready -U $env:POSTGRES_USER -d $env:POSTGRES_DB 2>$null
     if ($LASTEXITCODE -eq 0) {
         $dbReady = $true
     } else {
@@ -66,14 +66,32 @@ while ($attempt -lt $maxAttempts -and -not $dbReady) {
 Write-Host ""
 if (-not $dbReady) {
     Write-Host "ERROR: Database did not become ready in time" -ForegroundColor Red
-    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs db
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs auth-db
     exit 1
 }
 Write-Host "[OK] Database is ready" -ForegroundColor Green
 Write-Host ""
 
-# Override DB_HOST for local testing
-$env:DB_HOST = "localhost"
+# Load test.env for auth service tests
+$authTestEnvPath = "services\auth.service\test.env"
+if (Test-Path $authTestEnvPath) {
+    Write-Host "Loading auth service test environment variables..." -ForegroundColor Yellow
+    Get-Content $authTestEnvPath | ForEach-Object {
+        if ($_ -match '^([^=]+)=(.*)$' -and $_ -notmatch '^#') {
+            [Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+        }
+    }
+    Write-Host "[OK] Auth test environment loaded" -ForegroundColor Green
+} else {
+    Write-Host "WARNING: test.env not found for auth service, using .env values" -ForegroundColor Yellow
+    # Map POSTGRES_* variables to DB_* variables for tests
+    $env:DB_HOST = "localhost"
+    $env:DB_USER = $env:POSTGRES_USER
+    $env:DB_PASSWORD = $env:POSTGRES_PASSWORD
+    $env:DB_NAME = $env:POSTGRES_DB
+    $env:DB_PORT = $env:POSTGRES_PORT
+}
+Write-Host ""
 
 # Run Auth Service Tests
 Write-Host "========================================" -ForegroundColor Cyan

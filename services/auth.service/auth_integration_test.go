@@ -186,7 +186,7 @@ func TestValidateHandler_ValidToken(t *testing.T) {
 	var token string
 	var err error
 	tc.withTestContext(func() {
-		token, err = generateJWT("testuser", "admin")
+		token, err = generateJWT(1, "testuser", "admin")
 	})
 	if err != nil {
 		t.Fatalf("Failed to generate token: %v", err)

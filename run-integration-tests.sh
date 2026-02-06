@@ -32,11 +32,11 @@ if [ -f .env ]; then
     echo -e "${GREEN}[OK] Environment variables loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: .env file not found. Using test defaults.${NC}"
-    export DB_HOST="localhost"
-    export DB_PORT="5432"
-    export DB_USER="postgres"
-    export DB_PASSWORD="postgres"
-    export DB_NAME="devops_db"
+    export POSTGRES_HOST="db"
+    export POSTGRES_PORT="5432"
+    export POSTGRES_USER="postgres"
+    export POSTGRES_PASSWORD="postgres"
+    export POSTGRES_DB="devops_db"
     export JWT_SECRET="test-secret-key"
 fi
 echo ""

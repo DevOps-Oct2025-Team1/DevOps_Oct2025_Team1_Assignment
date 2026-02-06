@@ -32,7 +32,37 @@ docker-compose ps
 
 ### Step 2: Set Environment Variables
 
-For Auth Service tests, set the required environment variables:
+For Auth Service tests, set the required environment variables.
+
+**Option A: Create test.env file from template**
+
+First, copy the example file and update the placeholder values:
+
+```bash
+# Copy the template
+cp services/auth.service/test.env.example services/auth.service/test.env
+
+# Edit test.env and replace the placeholder values:
+# - DB_USER (change from "test_user_CHANGE_ME")
+# - DB_PASSWORD (change from "CHANGE_ME_test_password_min_16_chars")
+# - JWT_SECRET (change from "CHANGE_ME_random_secret_min_32_chars_for_testing_only")
+```
+
+Then source the file:
+
+```bash
+# Linux/Mac
+source services/auth.service/test.env
+
+# Windows (PowerShell)
+Get-Content services\auth.service\test.env | ForEach-Object {
+    if ($_ -match '^([^=]+)=(.*)$') {
+        [Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+    }
+}
+```
+
+**Option B: Set environment variables manually**
 
 **Windows PowerShell:**
 ```powershell
@@ -52,19 +82,6 @@ export DB_USER=postgres
 export DB_PASSWORD=your_password_here
 export DB_NAME=devops_db
 export JWT_SECRET=your_jwt_secret_here
-```
-
-Or use the provided `test.env` file:
-```bash
-# Linux/Mac
-source services/auth.service/test.env
-
-# Windows (PowerShell)
-Get-Content services\auth.service\test.env | ForEach-Object {
-    if ($_ -match '^([^=]+)=(.*)$') {
-        [Environment]::SetEnvironmentVariable($matches[1], $matches[2])
-    }
-}
 ```
 
 ### Step 3: Run Auth Service Tests

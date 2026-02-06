@@ -4,18 +4,12 @@
 
 version: "3.9"
 services:
-  # Expose database ports for host-side integration tests
-  auth-db:
+  # Expose database port for host-side integration tests
+  db:
     ports:
       - "5432:5432"
 
-  chats_db:
-    ports:
-      - "5433:5432"
-
 networks:
-  # Allow external access to networks for integration testing
-  auth-network:
-    internal: false
-  llm-network:
+  # Allow external access to backend network for integration testing
+  backend-network:
     internal: false

@@ -16,11 +16,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// globalTestMutex protects access to global variables across all tests
+// This prevents race conditions when tests run in parallel
+var globalTestMutex sync.Mutex
+
 // testContext holds test-specific database and JWT secret to avoid modifying global state
 type testContext struct {
 	db        *sql.DB
 	jwtSecret []byte
-	mu        sync.Mutex // Protects global state during test execution
 }
 
 // setupTestContext creates an isolated test environment with its own DB connection and JWT secret
@@ -49,10 +52,10 @@ func setupTestContext(t *testing.T) *testContext {
 }
 
 // withTestContext temporarily sets global variables for a single handler execution
-// This prevents race conditions by using a mutex to serialize access to global state
+// This prevents race conditions by using a package-level mutex to serialize access to global state across all tests
 func (tc *testContext) withTestContext(fn func()) {
-	tc.mu.Lock()
-	defer tc.mu.Unlock()
+	globalTestMutex.Lock()
+	defer globalTestMutex.Unlock()
 
 	// Save original global state
 	originalDB := db
@@ -99,11 +102,14 @@ func TestLoginHandler_Success(t *testing.T) {
 	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_login_user_" + time.Now().Format("20060102150405999999999")
+	testUsername := "test_login_user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	testPassword := "testpassword123"
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash test password: %v", err)
+	}
 
-	_, err := tc.db.Exec(
+	_, err = tc.db.Exec(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
 		testUsername, string(hashedPassword), "user",
 	)
@@ -288,7 +294,7 @@ func TestCreateUserHandler_Success(t *testing.T) {
 	tc := setupTestContext(t)
 	defer tc.Close()
 
-	testUsername := "test_create_user_" + time.Now().Format("20060102150405999999999")
+	testUsername := "test_create_user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	defer cleanupTestData(t, tc, testUsername)
 
 	// Create request
@@ -334,11 +340,14 @@ func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 	tc := setupTestContext(t)
 	defer tc.Close()
 
-	testUsername := "test_duplicate_user_" + time.Now().Format("20060102150405999999999")
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	testUsername := "test_duplicate_user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash test password: %v", err)
+	}
 
 	// Create initial user
-	_, err := tc.db.Exec(
+	_, err = tc.db.Exec(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
 		testUsername, string(hashedPassword), "user",
 	)
@@ -376,11 +385,14 @@ func TestEditUserHandler_Success(t *testing.T) {
 	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_edit_user_" + time.Now().Format("20060102150405999999999")
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	testUsername := "test_edit_user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash test password: %v", err)
+	}
 
 	var userID int
-	err := tc.db.QueryRow(
+	err = tc.db.QueryRow(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET role = $3 RETURNING id",
 		testUsername, string(hashedPassword), "user",
 	).Scan(&userID)
@@ -446,11 +458,14 @@ func TestDeleteUserHandler_Success(t *testing.T) {
 	defer tc.Close()
 
 	// Create test user
-	testUsername := "test_delete_user_" + time.Now().Format("20060102150405999999999")
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	testUsername := "test_delete_user_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash test password: %v", err)
+	}
 
 	var userID int
-	err := tc.db.QueryRow(
+	err = tc.db.QueryRow(
 		"INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id",
 		testUsername, string(hashedPassword), "user",
 	).Scan(&userID)

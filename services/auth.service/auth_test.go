@@ -194,11 +194,11 @@ func TestCheckPassword_Valid(t *testing.T) {
 		password string
 	}{
 		{
-			name:     "hashire",
+			name:     "valid password case 1",
 			password: "password",
 		},
 		{
-			name:     "umamusume",
+			name:     "valid password case 2",
 			password: "password",
 		},
 	}

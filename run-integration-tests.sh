@@ -40,17 +40,17 @@ else
 fi
 echo ""
 
-# Start database if not running
-echo -e "${YELLOW}Starting PostgreSQL database...${NC}"
-if ! docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d auth-db; then
-    echo -e "${RED}ERROR: Failed to start database${NC}"
+# Start required services for testing
+echo -e "${YELLOW}Starting test services (databases, pub/sub, mock LLMs)...${NC}"
+if ! docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d auth-db chats_db pubsub-emulator gemma3 qwen3 auth; then
+    echo -e "${RED}ERROR: Failed to start test services${NC}"
     exit 1
 fi
-echo -e "${GREEN}[OK] Database started${NC}"
+echo -e "${GREEN}[OK] Test services started${NC}"
 echo ""
 
 # Wait for database to be ready
-echo -e "${YELLOW}Waiting for database to be ready...${NC}"
+echo -e "${YELLOW}Waiting for auth database to be ready...${NC}"
 max_attempts=30
 attempt=0
 db_ready=false
@@ -68,11 +68,35 @@ done
 
 echo ""
 if [ "$db_ready" = false ]; then
-    echo -e "${RED}ERROR: Database did not become ready in time${NC}"
+    echo -e "${RED}ERROR: Auth database did not become ready in time${NC}"
     docker-compose -f docker-compose.yml -f docker-compose.test.yml logs auth-db
     exit 1
 fi
-echo -e "${GREEN}[OK] Database is ready${NC}"
+echo -e "${GREEN}[OK] Auth database is ready${NC}"
+echo ""
+
+# Wait for chats database to be ready
+echo -e "${YELLOW}Waiting for chats database to be ready...${NC}"
+attempt=0
+chats_db_ready=false
+
+while [ $attempt -lt $max_attempts ] && [ "$chats_db_ready" = false ]; do
+    attempt=$((attempt + 1))
+    if docker-compose -f docker-compose.yml -f docker-compose.test.yml exec -T chats_db pg_isready -U "$CHATS_POSTGRES_USER" -d "$CHATS_POSTGRES_DB" > /dev/null 2>&1; then
+        chats_db_ready=true
+    else
+        sleep 1
+        echo -n "."
+    fi
+done
+
+echo ""
+if [ "$chats_db_ready" = false ]; then
+    echo -e "${RED}ERROR: Chats database did not become ready in time${NC}"
+    docker-compose -f docker-compose.yml -f docker-compose.test.yml logs chats_db
+    exit 1
+fi
+echo -e "${GREEN}[OK] Chats database is ready${NC}"
 echo ""
 
 # Load test.env for auth service tests
@@ -117,6 +141,33 @@ cd ../.. || exit 1
 
 echo ""
 
+# Run Prompt Manager Tests
+echo -e "${CYAN}========================================"
+echo -e "Running Prompt Manager Integration Tests"
+echo -e "========================================${NC}"
+echo ""
+
+# Set Prompt Manager specific environment variables
+export DB_HOST="localhost"
+export DB_PORT="5433"
+export DB_USER="$CHATS_POSTGRES_USER"
+export DB_PASSWORD="$CHATS_POSTGRES_PASSWORD"
+export DB_NAME="$CHATS_POSTGRES_DB"
+export PUBSUB_EMULATOR_HOST="localhost:8085"
+export PUBSUB_PROJECT_ID="local-project"
+export PUBSUB_TOPIC_ID="prompt-requests"
+export PUBSUB_SUBSCRIPTION_ID="prompt-requests-sub"
+export AUTH_SERVICE_URL="http://localhost:8001"
+export GEMMA3_SERVICE_URL="http://localhost:8003"
+export QWEN3_SERVICE_URL="http://localhost:8004"
+
+cd services/prompt-manager.service || exit 1
+go test -v
+prompt_manager_test_result=$?
+cd ../.. || exit 1
+
+echo ""
+
 # Summary
 echo -e "${CYAN}========================================"
 echo -e "Test Results Summary"
@@ -134,19 +185,25 @@ else
     echo -e "${RED}[FAIL] API Gateway Tests: FAILED${NC}"
 fi
 
+if [ $prompt_manager_test_result -eq 0 ]; then
+    echo -e "${GREEN}[PASS] Prompt Manager Tests: PASSED${NC}"
+else
+    echo -e "${RED}[FAIL] Prompt Manager Tests: FAILED${NC}"
+fi
+
 echo ""
 
 # Clean up option
-echo -en "${YELLOW}Do you want to stop the database? (y/N): ${NC}"
+echo -en "${YELLOW}Do you want to stop the test services? (y/N): ${NC}"
 read -r response
 if [[ "$response" =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}Stopping database...${NC}"
+    echo -e "${YELLOW}Stopping test services...${NC}"
     docker-compose -f docker-compose.yml -f docker-compose.test.yml down
-    echo -e "${GREEN}[OK] Database stopped${NC}"
+    echo -e "${GREEN}[OK] Test services stopped${NC}"
 fi
 
 # Exit with appropriate code
-if [ $auth_test_result -ne 0 ] || [ $gateway_test_result -ne 0 ]; then
+if [ $auth_test_result -ne 0 ] || [ $gateway_test_result -ne 0 ] || [ $prompt_manager_test_result -ne 0 ]; then
     exit 1
 fi
 

@@ -7,24 +7,52 @@ This document explains how to run integration tests for the backend Go services.
 Integration tests have been created for:
 - **Auth Service** (`auth.service/auth_integration_test.go`)
 - **API Gateway** (`api-gateway.service/gateway_integration_test.go`)
+- **Prompt Manager Service** (`prompt-manager.service/prompt_manager_integration_test.go`)
 
 ## Prerequisites
 
 1. **Docker and Docker Compose** installed
 2. **Go 1.25+** installed
-3. **PostgreSQL database** running (via Docker Compose)
+3. **PostgreSQL databases** running (via Docker Compose)
+4. **Pub/Sub Emulator** running (for prompt-manager tests)
+5. **Mock LLM Services** running (for prompt-manager tests)
 
 ## Running Integration Tests
 
-### Step 1: Start the Database
+### Quick Start (Recommended)
 
-First, start the PostgreSQL database using Docker Compose:
+Use the automated test runner scripts that handle all service setup and teardown:
 
-```bash
-docker-compose up -d db
+**Windows PowerShell:**
+```powershell
+.\run-integration-tests.ps1
 ```
 
-Wait for the database to be healthy (about 10-15 seconds):
+**Linux/macOS/WSL:**
+```bash
+./run-integration-tests.sh
+```
+
+These scripts will:
+1. Start all required services (databases, Pub/Sub emulator, mock LLMs, auth service)
+2. Wait for services to be ready
+3. Run all integration tests (Auth, API Gateway, Prompt Manager)
+4. Display a summary of test results
+5. Optionally clean up services
+
+### Manual Testing
+
+If you prefer to run tests manually:
+
+### Step 1: Start Required Services
+
+Start all test services using Docker Compose:
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d auth-db chats_db pubsub-emulator gemma3 qwen3 auth
+```
+
+Wait for services to be healthy (about 10-15 seconds):
 
 ```bash
 docker-compose ps
@@ -82,12 +110,61 @@ export DB_USER=postgres
 export DB_PASSWORD=your_password_here
 export DB_NAME=devops_db
 export JWT_SECRET=your_jwt_secret_here
+```Prompt Manager Tests
+
+**Option A: Using environment file**
+
+```bash
+# Copy and configure test environment
+cp services/prompt-manager.service/test.env.example services/prompt-manager.service/test.env
+# Edit test.env and update the placeholder values
+
+# Source the file
+source services/prompt-manager.service/test.env
+
+# Run tests
+cd services/prompt-manager.service
+go test -v
 ```
 
-### Step 3: Run Auth Service Tests
+**Option B: Set environment variables manually**
 
-Navigate to the auth service directory and run tests:
+**Windows PowerShell:**
+```powershell
+$env:DB_HOST="localhost"
+$env:DB_PORT="5433"
+$env:DB_USER="postgres"
+$env:DB_PASSWORD="your_password_here"
+$env:DB_NAME="chats_db"
+$env:PUBSUB_EMULATOR_HOST="localhost:8085"
+$env:PUBSUB_PROJECT_ID="local-project"
+$env:PUBSUB_TOPIC_ID="prompt-requests"
+$env:PUBSUB_SUBSCRIPTION_ID="prompt-requests-sub"
+$env:AUTH_SERVICE_URL="http://localhost:8001"
+$env:GEMMA3_SERVICE_URL="http://localhost:8003"
+$env:QWEN3_SERVICE_URL="http://localhost:8004"
+```
 
+**Linux/Mac:**
+```bash
+export DB_HOST=localhost
+export DB_PORT=5433
+export DB_USER=postgres
+export DB_PASSWORD=your_password_here
+export DB_NAME=chats_db
+export PUBSUB_EMULATOR_HOST=localhost:8085
+export PUBSUB_PROJECT_ID=local-project
+export PUBSUB_TOPIC_ID=prompt-requests
+export PUBSUB_SUBSCRIPTION_ID=prompt-requests-sub
+export AUTH_SERVICE_URL=http://localhost:8001
+export GEMMA3_SERVICE_URL=http://localhost:8003
+export QWEN3_SERVICE_URL=http://localhost:8004
+```
+
+Navigate to the prompt-manager directory and run tests:
+
+```bash
+cd services/prompt-manager
 ```bash
 cd services/auth.service
 go test -v
@@ -102,6 +179,47 @@ go test -v -run TestLoginHandler_Success
 To run specific tests:
 
 ```bash
+
+### Prompt Manager Tests
+
+1. **Public Endpoints:**
+   - ✅ Health check endpoint
+   - ✅ Available models endpoint
+
+2. **Chat Management Tests:**
+   - ✅ Create chat with valid model
+   - ✅ Create chat with invalid model
+   - ✅ Create chat without authentication (unauthorized)
+   - ✅ List chats with pagination
+   - ✅ Get specific chat with messages
+   - ✅ Get non-existent chat (not found)
+   - ✅ Delete chat
+
+3. **Message Tests:**
+   - ✅ Send message to chat
+   - ✅ Message persistence in database
+
+4. **LLM Integration Tests:**
+   - ✅ Process message with mock LLM service
+   - ✅ Assistant response generation
+   - ✅ Token usage tracking
+   - ✅ Message status updates
+
+5. **Authentication & Authorization:**
+   - ✅ Auth middleware with valid token
+   - ✅ Auth middleware with invalid token
+   - ✅ User ID extraction from JWT
+
+6. **Pub/Sub Integration:**
+   - ✅ Pub/Sub client connection
+   - ✅ Topic creation and access
+   - ✅ Message publishing
+
+7. **Database Tests:**
+   - ✅ Database connection
+   - ✅ Chat CRUD operations
+   - ✅ Message CRUD operations
+   - ✅ Data persistence and cleanup
 go test -v -run TestCreateUserHandler_Success
 go test -v -run TestLoginHandler
 go test -v -run TestValidateHandler
@@ -172,11 +290,15 @@ docker-compose exec api-gateway go test -v
 
 ## Test Database
 
-Tests use the same database as the development environment. Test data is cleaned up after each test using the `cleanupTestData` function.
+Tests use separate databases for different services:
+- **Auth Service**: Uses the `devops_db` database (port 5432)
+- **Prompt Manager**: Uses the `chats_db` database (port 5433 when testing locally)
 
-### Database Schema
+Test data is cleaned up after each test using cleanup functions.
 
-Ensure the database has the following schema:
+### Database Schemas
+
+**Auth Database:**
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -188,20 +310,49 @@ CREATE TABLE IF NOT EXISTS users (
 );
 ```
 
+**Chats Database:**
+
+```sql
+CREATE TABLE IF NOT EXISTS chats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    model VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'completed',
+    error_message TEXT,
+    tokens_used INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
+CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
+```
+
 ## Troubleshooting
 
 ### Database Connection Issues
 
 If tests fail with database connection errors:
 
-1. Verify the database is running:
+1. Verify the databases are running:
 ```bash
-docker-compose ps db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml ps
 ```
 
 2. Check database logs:
 ```bash
-docker-compose logs db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml logs auth-db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml logs chats_db
 ```
 
 3. Verify environment variables are set correctly:
@@ -217,18 +368,115 @@ echo $DB_PORT
 
 ### Port Conflicts
 
-If port 5432 is already in use:
+If ports are already in use:
 
-1. Check for existing PostgreSQL instances
-2. Stop them or change the port in `docker-compose.yml`
-3. Update environment variables accordingly
+- Port 5432 (auth-db): Check for existing PostgreSQL instances
+- Port 5433 (chats_db): Check for conflicting services
+- Port 8085 (Pub/Sub emulator): Check for conflicting applications
+- Port 8001 (auth service): Check for running auth service
+- Port 8003/8004 (mock LLMs): Check for conflicting services
 
-### JWT Secret Mismatch
+Solution:
+1. Stop conflicting services or change ports in `docker-compose.test.yml`
+2. Update environment variables accordingly
 
-Ensure the `JWT_SECRET` environment variable matches between:
-- Your `.env` file
-- Test environment variables
-- Docker Compose environment
+### Pub/Sub Emulator Issues
+
+If Pub/Sub tests fail:
+
+1. Verify the emulator is running:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.test.yml logs pubsub-emulator
+```
+
+2. Check the `PUBSUB_EMULATOR_HOST` environment variable is set:
+```bash
+# Should be: localhost:8085
+echo $PUBSUB_EMULATOR_HOST
+```
+
+3. Ensure the emulator is accessible:
+```basauth-db:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: devops_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      chats-db:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: chats_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+      
+      - name: Start Pub/Sub Emulator
+        run: |
+          docker run -d -p 8085:8085 \
+            gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
+            gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+      
+      - name: Start Mock LLM Services
+        run: |
+          docker-compose -f docker-compose.yml up -d gemma3 qwen3
+      
+      - name: Run Auth Service Tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: devops_db
+          JWT_SECRET: test-secret-key
+        run: |
+          cd services/auth.service
+          go test -v
+      
+      - name: Run API Gateway Tests
+        run: |
+          cd services/api-gateway.service
+          go test -v
+      
+      - name: Run Prompt Manager Tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: chats_db
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: local-project
+          AUTH_SERVICE_URL: http://localhost:8001
+          GEMMA3_SERVICE_URL: http://localhost:8003
+          QWEN3_SERVICE_URL: http://localhost:8004
+        run: |
+          cd services/prompt-managere LIKE 'test_%';
+
+-- In chats database
+SELECT * FROM chats WHERE title LIKE 'Test%';
+```
 
 ## CI/CD Integration
 
@@ -260,6 +508,61 @@ jobs:
         ports:
           - 5432:5432
     
+
+# Prompt Manager
+cd services/prompt-manager.service
+go test -coverprofile=coverage.out
+go tool cover -html=coverage.out -o coverage.html
+```
+
+## Test Architecture
+
+### Prompt Manager Test Design
+
+The prompt-manager integration tests follow these key patterns:
+
+1. **Test Isolation**: Each test uses a `testContext` with its own database connection and mock services
+2. **Global State Protection**: A mutex prevents race conditions when tests access global variables
+3. **Mock Services**: HTTP test servers simulate auth service and LLM services
+4. **Cleanup Handlers**: Deferred cleanup ensures test data is removed even if tests fail
+5. **Environment Flexibility**: Tests work with both emulator services and real services
+
+### Mock Services
+
+**Mock Auth Server:**
+- Validates tokens starting with "valid-"
+- Extracts user ID from token (e.g., "valid-123" → userID: 123)
+- Returns proper AuthValidateResponse
+
+**Mock LLM Server:**
+- Implements `/completion` endpoint
+- Returns predictable responses for testing
+- Simulates token usage tracking
+
+## Running Specific Tests
+
+Run individual test functions:
+
+```bash
+# Auth service - specific test
+cd services/auth.service
+go test -v -run TestLoginHandler_Success
+
+# Prompt Manager - specific test
+cd services/prompt-manager.service
+go test -v -run TestCreateChatHandler_Success
+go test -v -run TestProcessMessage_LLMIntegration
+go test -v -run TestAuthMiddleware
+```
+
+Run tests matching a pattern:
+
+```bash
+# All chat-related tests
+go test -v -run Chat
+
+# All LLM integration tests
+go test -v -run LLM
     steps:
       - uses: actions/checkout@v3
       
@@ -312,3 +615,12 @@ After running integration tests successfully:
 4. ✅ Integrate into CI/CD pipeline
 5. ✅ Document any edge cases
 6. ✅ Set up automated testing on pull requests
+7. ✅ Monitor test performance and flakiness
+8. ✅ Keep mock services updated with real service APIs
+
+## Additional Resources
+
+- [Go Testing Documentation](https://golang.org/pkg/testing/)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [Google Cloud Pub/Sub Emulator](https://cloud.google.com/pubsub/docs/emulator)
+- [PostgreSQL Testing Best Practices](https://www.postgresql.org/docs/current/regress.html)

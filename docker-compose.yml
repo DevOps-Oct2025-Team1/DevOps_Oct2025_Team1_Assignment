@@ -139,6 +139,7 @@ services:
     networks:
       - frontend-network
 <<<<<<< HEAD
+<<<<<<< HEAD
       - auth-network
       - llm-network
 =======
@@ -160,6 +161,12 @@ services:
       - backend-network
 >>>>>>> c86a930 (fix: made frontend build & run and fixed docker build for microservices)
 
+=======
+      - auth-network
+      - llm-network
+
+  # Frontend Application
+>>>>>>> dev
   frontend:
     build:
       context: ./app
@@ -168,7 +175,11 @@ services:
         VITE_API_URL: ${VITE_API_URL}
     container_name: frontend
     ports:
+<<<<<<< HEAD
       - "4173:4173"
+=======
+      - "5173:5173"
+>>>>>>> dev
     environment:
       PORT: 5173
     networks:

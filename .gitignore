@@ -206,6 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+<<<<<<< HEAD
 # Terraform
 .terraform/
 *.tfstate
@@ -223,3 +224,8 @@ services/admin.service/admin-service
 crash.log
 terraform.tfvars
 terraform/.terraform.lock.hcl
+=======
+services/auth.service/auth-service
+services/api-gateway.service/api-gateway
+services/admin.service/admin-service
+>>>>>>> dev

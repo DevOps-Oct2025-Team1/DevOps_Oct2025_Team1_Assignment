@@ -64,14 +64,20 @@ func main() {
 	mux.HandleFunc("/validate", validateHandler)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	//REMEMBER TO REMOVE
 	mux.HandleFunc("/getAIModels", getAIModelsHandler)
 =======
+=======
+>>>>>>> dev
 	mux.HandleFunc("GET /users", authMiddleware(getUsersHandler))
 	mux.HandleFunc("POST /users", authMiddleware(createUserHandler))
 	mux.HandleFunc("PUT /users/", authMiddleware(editUserHandler))
 	mux.HandleFunc("DELETE /users/", authMiddleware(deleteUserHandler))
+<<<<<<< HEAD
 >>>>>>> d8ab23c (feat: removed admin.service in favour of a more microservice design)
+=======
+>>>>>>> dev
 
 	// Get port from environment or default to 8001
 	port := os.Getenv("PORT")
@@ -85,9 +91,12 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
+<<<<<<< HEAD
 	//REMEMBER TO REMOVE
 	mux.HandleFunc("/getAIModels", getAIModelsHandler)
 
 	log.Println("Auth service running on :8001")
 	log.Fatal(http.ListenAndServe(":8001", mux))
+=======
+>>>>>>> dev
 }

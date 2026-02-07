@@ -110,7 +110,9 @@ export DB_USER=postgres
 export DB_PASSWORD=your_password_here
 export DB_NAME=devops_db
 export JWT_SECRET=your_jwt_secret_here
-```Prompt Manager Tests
+```
+
+**Prompt Manager Tests**
 
 **Option A: Using environment file**
 
@@ -164,9 +166,7 @@ export QWEN3_SERVICE_URL=http://localhost:8004
 Navigate to the prompt-manager directory and run tests:
 
 ```bash
-cd services/prompt-manager
-```bash
-cd services/auth.service
+cd services/prompt-manager.service
 go test -v
 ```
 
@@ -396,86 +396,61 @@ echo $PUBSUB_EMULATOR_HOST
 ```
 
 3. Ensure the emulator is accessible:
-```basauth-db:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: devops_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      chats-db:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: chats_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.25'
-      
-      - name: Start Pub/Sub Emulator
-        run: |
-          docker run -d -p 8085:8085 \
-            gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
-            gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
-      
-      - name: Start Mock LLM Services
-        run: |
-          docker-compose -f docker-compose.yml up -d gemma3 qwen3
-      
-      - name: Run Auth Service Tests
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: devops_db
-          JWT_SECRET: test-secret-key
-        run: |
-          cd services/auth.service
-          go test -v
-      
-      - name: Run API Gateway Tests
-        run: |
-          cd services/api-gateway.service
-          go test -v
-      
-      - name: Run Prompt Manager Tests
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5433
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: chats_db
-          PUBSUB_EMULATOR_HOST: localhost:8085
-          PUBSUB_PROJECT_ID: local-project
-          AUTH_SERVICE_URL: http://localhost:8001
-          GEMMA3_SERVICE_URL: http://localhost:8003
-          QWEN3_SERVICE_URL: http://localhost:8004
-        run: |
-          cd services/prompt-managere LIKE 'test_%';
+```bash
+curl http://localhost:8085
+# Should return: Ok
+```
 
--- In chats database
-SELECT * FROM chats WHERE title LIKE 'Test%';
+4. Manually test topic creation:
+```bash
+# Set the emulator host
+export PUBSUB_EMULATOR_HOST=localhost:8085
+
+# Create a test topic (requires gcloud CLI)
+gcloud pubsub topics create test-topic --project=local-project
+```
+
+### LLM Service Mock Issues
+
+If LLM integration tests fail:
+
+1. Verify mock LLM services are running:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.test.yml ps gemma3 qwen3
+```
+
+2. Test mock service endpoints:
+```bash
+curl http://localhost:8003/health
+curl http://localhost:8004/health
+```
+
+### Database Issues
+
+If database connection tests fail:
+
+1. Check database logs:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.test.yml logs auth-db
+docker-compose -f docker-compose.yml -f docker-compose.test.yml logs chats_db
+```
+
+2. Verify database is accepting connections:
+```bash
+# Auth database
+docker exec -it auth-postgres-db psql -U postgres -d devops_db -c "SELECT 1;"
+
+# Chats database  
+docker exec -it chats-db psql -U postgres -d chats_db -c "SELECT 1;"
+```
+
+3. Clean up test data:
+```bash
+# In auth database
+docker exec -it auth-postgres-db psql -U postgres -d devops_db -c "DELETE FROM users WHERE username LIKE 'test_%';"
+
+# In chats database
+docker exec -it chats-db psql -U postgres -d chats_db -c "DELETE FROM chats WHERE title LIKE 'Test%';"
 ```
 
 ## CI/CD Integration
@@ -530,9 +505,10 @@ The prompt-manager integration tests follow these key patterns:
 ### Mock Services
 
 **Mock Auth Server:**
-- Validates tokens starting with "valid-"
-- Extracts user ID from token (e.g., "valid-123" → userID: 123)
-- Returns proper AuthValidateResponse
+- Expects JWT-shaped bearer tokens (three base64-encoded segments separated by dots)
+- Accepts any properly formatted JWT token except the literal string `"invalid-token"`
+- Returns successful `AuthValidateResponse` (userID: 123, username: "testuser", role: "user") for accepted tokens
+- Returns authentication error for `"invalid-token"`
 
 **Mock LLM Server:**
 - Implements `/completion` endpoint
@@ -563,30 +539,6 @@ go test -v -run Chat
 
 # All LLM integration tests
 go test -v -run LLM
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.25'
-      
-      - name: Run Auth Service Tests
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: devops_db
-          JWT_SECRET: test-secret-key
-        run: |
-          cd services/auth.service
-          go test -v
-      
-      - name: Run API Gateway Tests
-        run: |
-          cd services/api-gateway.service
-          go test -v
 ```
 
 ## Coverage Reports

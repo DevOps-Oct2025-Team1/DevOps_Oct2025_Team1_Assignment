@@ -31,12 +31,28 @@ if [ -f .env ]; then
     echo -e "${GREEN}[OK] Environment variables loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: .env file not found. Using test defaults.${NC}"
+    
+    # Auth database variables (for docker-compose)
     export POSTGRES_HOST="db"
     export POSTGRES_PORT="5432"
     export POSTGRES_USER="postgres"
     export POSTGRES_PASSWORD="postgres"
     export POSTGRES_DB="devops_db"
+    
+    # Auth database variables (for Go tests)
+    export DB_HOST="localhost"
+    export DB_PORT="5432"
+    export DB_USER="postgres"
+    export DB_PASSWORD="postgres"
+    export DB_NAME="devops_db"
     export JWT_SECRET="test-secret-key"
+    
+    # Chats database variables (for docker-compose and Go tests)
+    export CHATS_POSTGRES_HOST="db"
+    export CHATS_POSTGRES_PORT="5432"
+    export CHATS_POSTGRES_USER="postgres"
+    export CHATS_POSTGRES_PASSWORD="postgres"
+    export CHATS_POSTGRES_DB="chats_db"
 fi
 echo ""
 

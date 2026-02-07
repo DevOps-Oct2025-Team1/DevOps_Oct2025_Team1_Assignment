@@ -1,15 +1,12 @@
 package main
 
 import (
-<<<<<<< HEAD
 	"bytes"
 	"database/sql"
 	"encoding/json"
 	"io"
-=======
 	"database/sql"
 	"encoding/json"
->>>>>>> dev
 	"log"
 	"net/http"
 	"os"
@@ -57,11 +54,6 @@ func getUserByUsername(username string) (*User_Auth, error) {
 	var user User_Auth
 	err := db.QueryRow("SELECT id, username, password_hash, role FROM users WHERE username = $1", username).
 		Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role)
-<<<<<<< HEAD
-
-=======
-	
->>>>>>> dev
 	if err != nil {
 		log.Printf("Error fetching user %s: %v", username, err)
 		return nil, err
@@ -73,24 +65,13 @@ func getUserByUsername(username string) (*User_Auth, error) {
 
 func checkPassword(hashedPassword, password string) bool {
 	log.Printf("Checking password - Hash length: %d, Password length: %d", len(hashedPassword), len(password))
-<<<<<<< HEAD
 
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-
-=======
 	
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-	
->>>>>>> dev
 	if err != nil {
 		log.Printf("Password check failed: %v", err)
 		return false
 	}
-<<<<<<< HEAD
-
-=======
-	
->>>>>>> dev
 	log.Println("Password check successful")
 	return true
 }
@@ -145,11 +126,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-<<<<<<< HEAD
-
-=======
-	
->>>>>>> dev
 	log.Printf("Login attempt for user: %s", req.Username)
 
 	user, err := getUserByUsername(req.Username)
@@ -198,7 +174,6 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-<<<<<<< HEAD
 func getAIModelsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -240,5 +215,3 @@ func getAIModelsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(opaResp["result"])
 
 }
-=======
->>>>>>> dev

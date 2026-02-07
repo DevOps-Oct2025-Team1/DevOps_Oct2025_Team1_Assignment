@@ -138,35 +138,11 @@ services:
       PROMPT_MANAGER_SERVICE_URL: http://prompt-manager:8002
     networks:
       - frontend-network
-<<<<<<< HEAD
-<<<<<<< HEAD
       - auth-network
       - llm-network
-=======
       - backend-network
-
-  opa:
-    image: openpolicyagent/opa
-    container_name: opa
-    command:
-      - "run"
-      - "--server"
-      - "--addr=0.0.0.0:8181"
-      - "--log-level=info"
-      - "--set=decision_logs.console=true"
-      - "/policies"
-    volumes:
-      - ./services/opa.service/modelFilter:/policies:ro
-    networks:
-      - backend-network
->>>>>>> c86a930 (fix: made frontend build & run and fixed docker build for microservices)
-
-=======
-      - auth-network
-      - llm-network
 
   # Frontend Application
->>>>>>> dev
   frontend:
     build:
       context: ./app
@@ -175,11 +151,8 @@ services:
         VITE_API_URL: ${VITE_API_URL}
     container_name: frontend
     ports:
-<<<<<<< HEAD
       - "4173:4173"
-=======
       - "5173:5173"
->>>>>>> dev
     environment:
       PORT: 5173
     networks:

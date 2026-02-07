@@ -10,6 +10,7 @@ on:
 env:
   REGION: ${{ secrets.GCP_REGION }}
   ARTIFACT_REPO: ${{ secrets.ARTIFACT_REPO }}
+  PROJECT_ID: ${{ secrets.GCP_STAGING_PROJECT_ID }}
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:

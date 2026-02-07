@@ -1,11 +1,8 @@
-version: "3.9"
 services:
   # Auth Database
   auth-db:
     image: postgres:15-alpine
     container_name: auth-postgres-db
-    ports:
-      - "${POSTGRES_PORT}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -27,26 +24,23 @@ services:
     networks:
       - auth-network
       - frontend-network
-
-    chats_db:
-      image: postgres:15-alpine
-      container_name: chats-db
-      environment:
-        POSTGRES_DB: ${CHATS_POSTGRES_DB}
-        POSTGRES_USER: ${CHATS_POSTGRES_USER}
-        POSTGRES_PASSWORD: ${CHATS_POSTGRES_PASSWORD}
-      ports:
-        - "${CHATS_POSTGRES_PORT}:5432"
-      volumes:
-        - chats_data:/var/lib/postgresql/data
-        - ./services/prompt-manager.service/db:/docker-entrypoint-initdb.d
-      healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U ${CHATS_POSTGRES_USER} -d ${CHATS_POSTGRES_DB}"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
-      networks:
-        - llm-network
+  chats_db:
+    image: postgres:15-alpine
+    container_name: chats-db
+    environment:
+      POSTGRES_DB: ${CHATS_POSTGRES_DB}
+      POSTGRES_USER: ${CHATS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${CHATS_POSTGRES_PASSWORD}
+    volumes:
+      - chats_data:/var/lib/postgresql/data
+      - ./services/prompt-manager.service/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHATS_POSTGRES_USER} -d ${CHATS_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - llm-network
 
       # Pub/Sub Emulator for local development
     pubsub-emulator:

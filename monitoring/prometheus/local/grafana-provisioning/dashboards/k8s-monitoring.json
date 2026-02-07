@@ -156,7 +156,7 @@
         "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
         "targets": [
           {
-            "expr": "count(gke_node_cpu_utilization)",
+            "expr": "count(count by (cluster_name) (gke_node_cpu_utilization)) or on() vector(0)",
             "refId": "A"
           }
         ],
@@ -181,7 +181,7 @@
         "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
         "targets": [
           {
-            "expr": "count(count by (pod_name, namespace) (gke_container_cpu_usage_seconds))",
+            "expr": "count(gke_pod_network_sent_bytes_total) or on() vector(0)",
             "refId": "A"
           }
         ],
@@ -213,7 +213,7 @@
         "gridPos": { "x": 0, "y": 6, "w": 6, "h": 6 },
         "targets": [
           {
-            "expr": "avg(gke_node_cpu_utilization)",
+            "expr": "avg(gke_node_cpu_utilization) or on() vector(0)",
             "refId": "A"
           }
         ],
@@ -248,7 +248,7 @@
         "gridPos": { "x": 6, "y": 6, "w": 6, "h": 6 },
         "targets": [
           {
-            "expr": "avg(gke_node_memory_utilization)",
+            "expr": "avg(gke_node_memory_utilization) or on() vector(0)",
             "refId": "A"
           }
         ],
@@ -491,8 +491,8 @@
         "targets": [
           {
             "expr": "gke_node_cpu_utilization",
-            "legendFormat": "{{node_name}}",
-            "refId": "A"
+            "refId": "A",
+            "legendFormat": "{{node_name}}"
           }
         ],
         "options": {
@@ -520,8 +520,8 @@
         "targets": [
           {
             "expr": "gke_node_memory_utilization",
-            "legendFormat": "{{node_name}}",
-            "refId": "A"
+            "refId": "A",
+            "legendFormat": "{{node_name}}"
           }
         ],
         "options": {
@@ -548,9 +548,9 @@
         "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "topk(10, gke_container_cpu_usage_seconds)",
-            "legendFormat": "{{namespace}}/{{pod_name}}/{{container_name}}",
-            "refId": "A"
+            "expr": "topk(10, rate(gke_container_cpu_usage_seconds[5m]))",
+            "refId": "A",
+            "legendFormat": "{{pod_name}} - {{container_name}}"
           }
         ],
         "options": {
@@ -576,8 +576,8 @@
         "targets": [
           {
             "expr": "topk(10, gke_container_memory_usage_bytes)",
-            "legendFormat": "{{namespace}}/{{pod_name}}/{{container_name}}",
-            "refId": "A"
+            "refId": "A",
+            "legendFormat": "{{pod_name}} - {{container_name}}"
           }
         ],
         "options": {
@@ -602,9 +602,9 @@
         "gridPos": { "x": 0, "y": 40, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "topk(10, gke_pod_network_sent_bytes_total)",
-            "legendFormat": "{{namespace}}/{{pod_name}}",
-            "refId": "A"
+            "expr": "topk(10, rate(gke_pod_network_sent_bytes_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{pod_name}}"
           }
         ],
         "options": {
@@ -629,9 +629,9 @@
         "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "topk(10, gke_pod_network_received_bytes_total)",
-            "legendFormat": "{{namespace}}/{{pod_name}}",
-            "refId": "A"
+            "expr": "topk(10, rate(gke_pod_network_received_bytes_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{pod_name}}"
           }
         ],
         "options": {

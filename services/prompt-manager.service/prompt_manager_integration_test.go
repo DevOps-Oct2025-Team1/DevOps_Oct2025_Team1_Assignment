@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -47,13 +48,15 @@ func setupTestContext(t *testing.T) *testContext {
 		t.Fatalf("Failed to ping test database: %v", err)
 	}
 
-	// Setup Pub/Sub client
+	// Setup Pub/Sub client (optional - only fail if test explicitly needs it)
 	ctx := context.Background()
 	projectID := getEnv("PUBSUB_PROJECT_ID", "local-project")
 
 	psClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		t.Fatalf("Failed to create Pub/Sub client: %v", err)
+		// Don't fail here - let tests that need Pub/Sub handle the error
+		t.Logf("Warning: Failed to create Pub/Sub client: %v (tests requiring Pub/Sub will be skipped)", err)
+		psClient = nil
 	}
 
 	return &testContext{
@@ -76,6 +79,7 @@ func (tc *testContext) withTestContext(fn func()) {
 	originalDB := db
 	originalAuthURL := authServiceURL
 	originalPubsubClient := pubsubClient
+	originalTopic := topic
 	originalLLMServiceURLs := llmServiceURLs
 
 	// Set test-specific state
@@ -91,6 +95,7 @@ func (tc *testContext) withTestContext(fn func()) {
 	db = originalDB
 	authServiceURL = originalAuthURL
 	pubsubClient = originalPubsubClient
+	topic = originalTopic
 	llmServiceURLs = originalLLMServiceURLs
 }
 
@@ -170,9 +175,9 @@ func mockAuthServer() *httptest.Server {
 			return
 		}
 
-		// Validate JWT tokens (simple check - contains 3 parts separated by dots)
-		parts := len([]byte(req.Token))
-		if parts > 0 && req.Token != "invalid-token" {
+		// Validate JWT tokens (check for 3 parts separated by dots: header.payload.signature)
+		parts := strings.Split(req.Token, ".")
+		if len(parts) == 3 && req.Token != "invalid-token" {
 			// For any valid-looking JWT, return success
 			json.NewEncoder(w).Encode(AuthValidateResponse{
 				Valid:    true,
@@ -581,6 +586,10 @@ func TestSendMessageHandler_Success(t *testing.T) {
 	tc := setupTestContext(t)
 	defer tc.Close()
 
+	if tc.pubsubClient == nil {
+		t.Skip("Pub/Sub client not available - skipping test")
+	}
+
 	// Setup mock auth server
 	mockAuth := mockAuthServer()
 	defer mockAuth.Close()
@@ -603,8 +612,14 @@ func TestSendMessageHandler_Success(t *testing.T) {
 	topicID := getEnv("PUBSUB_TOPIC_ID", "prompt-requests")
 	testTopic := tc.pubsubClient.Topic(topicID)
 	exists, err := testTopic.Exists(ctx)
-	if err == nil && !exists {
-		testTopic, _ = tc.pubsubClient.CreateTopic(ctx, topicID)
+	if err != nil {
+		t.Fatalf("Failed to check if Pub/Sub topic %q exists: %v", topicID, err)
+	}
+	if !exists {
+		testTopic, err = tc.pubsubClient.CreateTopic(ctx, topicID)
+		if err != nil {
+			t.Fatalf("Failed to create Pub/Sub topic %q: %v", topicID, err)
+		}
 	}
 
 	sendReq := SendMessageRequest{
@@ -744,6 +759,10 @@ func TestDatabaseConnection(t *testing.T) {
 func TestPubSubConnection(t *testing.T) {
 	tc := setupTestContext(t)
 	defer tc.Close()
+
+	if tc.pubsubClient == nil {
+		t.Skip("Pub/Sub client not available - skipping test")
+	}
 
 	ctx := context.Background()
 	topicID := getEnv("PUBSUB_TOPIC_ID", "prompt-requests")

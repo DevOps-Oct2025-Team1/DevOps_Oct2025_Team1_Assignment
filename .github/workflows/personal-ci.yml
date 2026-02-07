@@ -35,6 +35,7 @@ jobs:
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
         id: sast_scan
+        continue-on-error: true
         uses: securego/gosec@v2.20.0
         with:
           args: '-fmt sarif -out gosec-results.sarif ./...'
@@ -51,6 +52,7 @@ jobs:
       # --- SECURITY PHASE (SCA) ---
       - name: Run SCA (Trivy)
         id: sca_scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'

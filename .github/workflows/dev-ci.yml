@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: ["dev", "main"]
 
+
+env:
+  REGION: ${{ secrets.GCP_REGION }}
+  ARTIFACT_REPO: ${{ secrets.ARTIFACT_REPO }}
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
   ci-dev:
     runs-on: ubuntu-latest
@@ -36,17 +42,40 @@ jobs:
         id: perf_tests
         run: echo "Performance tests will run here"
 
-      # --- STAGING DEPLOYMENT ---
-      - name: Deploy to Staging
-        id: staging_deploy
-        if: github.ref == 'refs/heads/dev'
+        # Authenticate to GCP
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_STAGING_SA_KEY }}
+
+      - name: Set up GCP
+        uses: google-github-actions/setup-gcloud@v2
+
+        # Docker Config
+      - name: Configure Docker for Artifact Registry
         run: |
-          echo "Executing Terraform apply to staging..."
-          echo "Updating Kubernetes manifests for staging..."
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
-      # --- NOTIFICATIONS ---
+        # Build Docker Images
+      - name: Build Docker Images 
+        id: build
+        run: |
+          PROJECT_ID=${PROJECT_ID} \
+          REGION=${REGION} \
+          ARTIFACT_REPO=${ARTIFACT_REPO} \
+          IMAGE_TAG=${IMAGE_TAG} \
+          docker compose build
 
-      # Initial Status Alert
+      - name: Upload to GCP Artifact Registry
+        id: upload
+        run: |
+          PROJECT_ID=${PROJECT_ID} \
+          REGION=${REGION} \
+          ARTIFACT_REPO=${ARTIFACT_REPO} \
+          IMAGE_TAG=${IMAGE_TAG} \
+          docker compose push
+
+          # Initial Status Alert
       - name: Notify Discord - CI Started
         if: always()
         uses: Ilshidur/action-discord@master
@@ -55,7 +84,7 @@ jobs:
         with:
           args: "🚀 **CI STARTED** | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}`"
 
-      # ROUTE: INTEGRATION TESTS (Dev Channel)
+          # ROUTE: INTEGRATION TESTS (Dev Channel)
       - name: Notify Discord - Integration Test Failure
         if: failure() && steps.integration_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -64,7 +93,7 @@ jobs:
         with:
           args: "🔗 **INTEGRATION FAILURE**: Pub/Sub queue or service communication error. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      # ROUTE: DAST ALERTS (QA Channel)
+          # ROUTE: DAST ALERTS (QA Channel)
       - name: Notify Discord - DAST Alert
         if: failure() && steps.dast.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -73,7 +102,7 @@ jobs:
         with:
           args: "🔍 **DAST ALERT**: Runtime security vulnerabilities detected during dynamic scanning. Check Security Tab."
 
-      # ROUTE: PERFORMANCE (Lead Dev/Architect)
+          # ROUTE: PERFORMANCE (Lead Dev/Architect)
       - name: Notify Discord - Performance Failure
         if: failure() && steps.perf_tests.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -82,7 +111,7 @@ jobs:
         with:
           args: "📉 **PERF REGRESSION**: Model latency or RPS thresholds exceeded on `${{ github.ref_name }}`."
 
-      # ROUTE: STAGING DEPLOYMENT (DevOps Team)
+          # ROUTE: STAGING DEPLOYMENT (DevOps Team)
       - name: Notify Discord - Staging Deployment Failure
         if: failure() && steps.staging_deploy.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -91,7 +120,7 @@ jobs:
         with:
           args: "⚠️ **STAGING DEPLOYMENT FAILED**: Unable to deploy to staging environment. Check logs."
 
-      # ROUTE: RELEVANT STAKEHOLDERS (Management/AIDC Leads)
+          # ROUTE: RELEVANT STAKEHOLDERS (Management/AIDC Leads)
       - name: Notify Stakeholders - Success
         if: success()
         uses: Ilshidur/action-discord@master

@@ -7,18 +7,18 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     environment:
-       POSTGRES_DB: ${POSTGRES_DB}
-       POSTGRES_USER: ${POSTGRES_USER}
-       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
-       # Default user and admin
-       DEFAULT_TESTUSER_USERNAME: ${DEFAULT_TESTUSER_USERNAME}
-       DEFAULT_TESTUSER_PASSWORD: ${DEFAULT_TESTUSER_PASSWORD}
-       DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
-       DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+      # Default user and admin
+    DEFAULT_TESTUSER_USERNAME: ${DEFAULT_TESTUSER_USERNAME}
+    DEFAULT_TESTUSER_PASSWORD: ${DEFAULT_TESTUSER_PASSWORD}
+    DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+    DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
     volumes:
-       - postgres_data:/var/lib/postgresql/data
-       - ./services/auth.service/db:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/auth.service/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -27,29 +27,30 @@ services:
     networks:
       - auth-network
       - frontend-network
-  chats_db:
-    image: postgres:15-alpine
-    container_name: chats-db
-    environment:
-      POSTGRES_DB: ${CHATS_POSTGRES_DB}
-      POSTGRES_USER: ${CHATS_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${CHATS_POSTGRES_PASSWORD}
-    ports:
-      - "${CHATS_POSTGRES_PORT}:5432"
-    volumes:
-      - chats_data:/var/lib/postgresql/data
-      - ./services/prompt-manager.service/db:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${CHATS_POSTGRES_USER} -d ${CHATS_POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - llm-network
 
-  # Pub/Sub Emulator for local development
-  pubsub-emulator:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    chats_db:
+      image: postgres:15-alpine
+      container_name: chats-db
+      environment:
+        POSTGRES_DB: ${CHATS_POSTGRES_DB}
+        POSTGRES_USER: ${CHATS_POSTGRES_USER}
+        POSTGRES_PASSWORD: ${CHATS_POSTGRES_PASSWORD}
+      ports:
+        - "${CHATS_POSTGRES_PORT}:5432"
+      volumes:
+        - chats_data:/var/lib/postgresql/data
+        - ./services/prompt-manager.service/db:/docker-entrypoint-initdb.d
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${CHATS_POSTGRES_USER} -d ${CHATS_POSTGRES_DB}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      networks:
+        - llm-network
+
+      # Pub/Sub Emulator for local development
+    pubsub-emulator:
+      image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
     container_name: pubsub-emulator
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
     ports:
@@ -57,26 +58,28 @@ services:
     networks:
       - llm-network
 
-  # Mock LLM Services (for local development)
-  gemma3:
-    build: ./k8s-local/mock-llm.service/
+      # Mock LLM Services (for local development)
+    gemma3:
+      build: ./k8s-local/mock-llm.service/
     container_name: mock-gemma3
     environment:
       MODEL_NAME: gemma3
     networks:
       - llm-network
 
-  qwen3:
-    build: ./k8s-local/mock-llm.service/
+    qwen3:
+      build: ./k8s-local/mock-llm.service/
     container_name: mock-qwen3
     environment:
       MODEL_NAME: qwen3
     networks:
       - llm-network
 
-  # Auth Microservice
-  auth:
-    build: ./services/auth.service/
+      # Auth Microservice
+    auth:
+      build: ./services/auth.service/
+      #Build Target
+      image: asia-southeast1-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/auth:${IMAGE_TAG}
     container_name: auth-service
     depends_on:
       auth-db:
@@ -90,10 +93,12 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     networks:
       - auth-network
-  
-  # Prompt Manager Microservice
-  prompt-manager:
-    build: ./services/prompt-manager.service/
+
+      # Prompt Manager Microservice
+    prompt-manager:
+      build: ./services/prompt-manager.service/
+      # Build Target
+    image: asia-southeast1-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/prompt-manager:${IMAGE_TAG}
     container_name: prompt-manager
     depends_on:
       chats_db:
@@ -122,9 +127,11 @@ services:
     networks:
       - llm-network
 
-  # API Gateway
-  api-gateway:
-    build: ./services/api-gateway.service/
+      # API Gateway
+    api-gateway:
+      build: ./services/api-gateway.service/
+      # Build target
+      image: asia-southeast1-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/api-gateway:${IMAGE_TAG}
     container_name: api-gateway
     ports:
       - "8000:8000"
@@ -141,14 +148,16 @@ services:
       - auth-network
       - llm-network
 
-  # Frontend Application
-  frontend:
-    build:
-      context: ./app
+      # Frontend Application
+    frontend:
+      build:
+        context: ./app
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
     container_name: frontend
+    # Build Target
+    image: asia-southeast1-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/frontend:${IMAGE_TAG}
     ports:
       - "5173:5173"
     environment:
@@ -156,19 +165,19 @@ services:
     networks:
       - frontend-network
 
-volumes:
-  postgres_data:
-  chats_data:
+    volumes:
+      postgres_data:
+        chats_data:
 
-networks:
-  frontend-network:
-    driver: bridge
+          networks:
+            frontend-network:
+              driver: bridge
     name: public-network
-  auth-network:
-    driver: bridge
+    auth-network:
+      driver: bridge
     name: auth-network
     internal: true
-  llm-network:
-    driver: bridge
+    llm-network:
+      driver: bridge
     name: llm-network
     internal: true

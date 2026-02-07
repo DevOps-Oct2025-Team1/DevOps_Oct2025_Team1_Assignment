@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: ["main"]
 
+env:
+  REGION: ${{ secrets.GCP_REGION }}
+  ARTIFACT_REPO: ${{ secrets.ARTIFACT_REPO }}
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
   prod-release:
     runs-on: ubuntu-latest
@@ -17,15 +22,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- PRODUCTION DEPLOYMENT ---
-      - name: Deploy to Production
-        id: deploy
+        # Authenticate to GCP
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up GCP
+        uses: google-github-actions/setup-gcloud@v2
+
+        # Docker Config
+      - name: Configure Docker for Artifact Registry
         run: |
-          echo "Executing Terraform apply..."
-          echo "Updating Kubernetes manifests..."
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
-      # --- NOTIFICATIONS ---
+        # Build Docker Images
+      - name: Build Docker Images 
+        id: build
+        run: |
+          PROJECT_ID=${PROJECT_ID} \
+          REGION=${REGION} \
+          ARTIFACT_REPO=${ARTIFACT_REPO} \
+          IMAGE_TAG=${IMAGE_TAG} \
+          docker compose build
 
+      - name: Upload to GCP Artifact Registry
+        id: upload
+        run: |
+          PROJECT_ID=${PROJECT_ID} \
+          REGION=${REGION} \
+          ARTIFACT_REPO=${ARTIFACT_REPO} \
+          IMAGE_TAG=${IMAGE_TAG} \
+          docker compose push
+
+          # --- NOTIFICATIONS ---
       - name: Notify Discord - Production Deployment Incident
         if: failure() && steps.deploy.outcome == 'failure'
         uses: Ilshidur/action-discord@master
@@ -38,7 +68,7 @@ jobs:
             **Status:** Infrastructure/Deployment Error
             **Check Logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      # ROUTE: Dev Channel (Implementation Stakeholders)
+            # ROUTE: Dev Channel (Implementation Stakeholders)
       - name: Notify Discord - Main Failure
         if: failure() && steps.deploy.outcome == 'skipped'
         uses: Ilshidur/action-discord@master
@@ -47,7 +77,7 @@ jobs:
         with:
           args: "❌ **PROD PIPELINE BROKEN**: The build failed before deployment could start. Actor: ${{ github.actor }}"
 
-      # ROUTE: Management Channel (Centre Appointment Holders)
+          # ROUTE: Management Channel (Centre Appointment Holders)
       - name: Notify Discord - Release Success
         if: success()
         uses: Ilshidur/action-discord@master

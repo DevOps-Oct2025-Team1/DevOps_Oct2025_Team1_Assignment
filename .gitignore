@@ -216,3 +216,5 @@ services/api-gateway.service/api-gateway
 services/admin.service/admin-service
 coverage.txt
 coverage
+
+gcp-monitoring-key.json

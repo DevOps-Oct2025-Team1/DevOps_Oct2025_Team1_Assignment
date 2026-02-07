@@ -1,19 +1,21 @@
-name: GKE CD
+name: GKE Production CD
 
 on:
-  push:
-    branches: ["main"]
+  workflow_run:
+    workflows: ["Production Release Pipeline"]
+    types:
+      - completed
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GKE_REGION }}
   ARTIFACT_REPO: ${{ secrets.ARTIFACT_REPO }}
   CLUSTER: ${{ secrets.GKE_CLUSTER }}
-  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
 
     steps:
       - name: Checkout code
@@ -28,40 +30,61 @@ jobs:
       - name: Set up GCP
         uses: google-github-actions/setup-gcloud@v2
 
-        # Docker Config
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-
-          # Build Docker Images
-      - name: Build Docker Images 
-        id: build
-        run: |
-          PROJECT_ID=${PROJECT_ID} \
-          REGION=${REGION} \
-          ARTIFACT_REPO=${ARTIFACT_REPO} \
-          IMAGE_TAG=${IMAGE_TAG} \
-          docker compose build
-
-      - name: Upload to GCP Artifact Registry
-        id: upload
-        run: |
-          PROJECT_ID=${PROJECT_ID} \
-          REGION=${REGION} \
-          ARTIFACT_REPO=${ARTIFACT_REPO} \
-          IMAGE_TAG=${IMAGE_TAG} \
-          docker compose push
-
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials ${CLUSTER} \
           --region ${REGION} \
           --project ${PROJECT_ID}
 
-      - name: Deploy all services to GKE
+      - name: Install Kustomize and envsubst
         run: |
-          kubectl apply -f k8s/
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          sudo apt-get update && sudo apt-get install -y gettext-base
 
-          kubectl rollout status deployment/backend
-          kubectl rollout status deployment/auth
+      - name: Deploy api-gateway to GKE
+        env:
+          API_GATEWAY_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/api-gateway:${{ github.sha }}"
+        run: |
+          cd services/api-gateway.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/api-gateway
 
+      - name: Deploy auth-service to GKE
+        env:
+          AUTH_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/auth-service:${{ github.sha }}"
+          POSTGRES_DB: "${{ secrets.POSTGRES_DB }}"
+          POSTGRES_USER: "${{ secrets.POSTGRES_USER }}"
+          POSTGRES_PASSWORD: "${{ secrets.POSTGRES_PASSWORD }}"
+          JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+          DEFAULT_TESTUSER_USERNAME: "${{ secrets.DEFAULT_TESTUSER_USERNAME }}"
+          DEFAULT_TESTUSER_PASSWORD: "${{ secrets.DEFAULT_TESTUSER_PASSWORD }}"
+          DEFAULT_ADMIN_USERNAME: "${{ secrets.DEFAULT_ADMIN_USERNAME }}"
+          DEFAULT_ADMIN_PASSWORD: "${{ secrets.DEFAULT_ADMIN_PASSWORD }}"
+        run: |
+          cd services/auth.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/auth-service
+
+      - name: Deploy prompt-manager-service to GKE
+        env:
+          PROMPT_MANAGER_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/prompt-manager-service:${{ github.sha }}"
+          CHATS_POSTGRES_DB: "${{ secrets.CHATS_POSTGRES_DB }}"
+          CHATS_POSTGRES_USER: "${{ secrets.CHATS_POSTGRES_USER }}"
+          CHATS_POSTGRES_PASSWORD: "${{ secrets.CHATS_POSTGRES_PASSWORD }}"
+          PUBSUB_PROJECT_ID: "${{ secrets.PUBSUB_PROJECT_ID }}"
+          PUBSUB_EMULATOR_HOST: "${{ secrets.PUBSUB_EMULATOR_HOST }}"
+          PUBSUB_TOPIC_ID: "${{ secrets.PUBSUB_TOPIC_ID }}"
+          PUBSUB_SUBSCRIPTION_ID: "${{ secrets.PUBSUB_SUBSCRIPTION_ID }}"
+        run: |
+          cd services/prompt-manager.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/prompt-manager-service
+
+      - name: Deploy frontend (app) to GKE
+        env:
+          FRONTEND_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/frontend:${{ github.sha }}"
+        run: |
+          cd app
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/frontend

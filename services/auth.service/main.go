@@ -56,4 +56,7 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
+
+	log.Println("Auth service running on :8001")
+	log.Fatal(http.ListenAndServe(":8001", mux))
 }

@@ -1,4 +1,4 @@
-resource "google_project_service" "devops-api" {
+resource "google_project_service" "devops_api" {
   for_each = toset(local.apis)
   service  = each.key
 

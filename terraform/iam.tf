@@ -3,7 +3,7 @@ resource "google_service_account_iam_member" "workload_identity_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${local.project_id}.svc.id.goog[default/default]"
 
-  depends_on = [google_container_cluster.devops-gke]
+  depends_on = [google_container_cluster.devops_gke]
 }
 
 resource "google_service_account" "devops_compute_gke_user" {

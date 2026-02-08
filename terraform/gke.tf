@@ -1,12 +1,12 @@
-resource "google_container_cluster" "devops-gke" {
+resource "google_container_cluster" "devops_gke" {
   name                     = "devops-gke"
   location                 = local.region
   network                  = google_compute_network.devops_vpc.id
-  subnetwork               = google_compute_subnetwork.devops-subnet-private.id
+  subnetwork               = google_compute_subnetwork.devops_subnet_private.id
   networking_mode          = "VPC_NATIVE"
-  deletion_protection      = false
+  deletion_protection      = var.enable_deletion_protection
   remove_default_node_pool = true
-  initial_node_count       = 1
+  initial_node_count       = var.gke_node_count
   node_locations           = local.gke_zones
 
   ip_allocation_policy {
@@ -17,12 +17,12 @@ resource "google_container_cluster" "devops-gke" {
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = false
-    master_ipv4_cidr_block  = "172.16.0.0/28"
+    master_ipv4_cidr_block  = var.master_cidr
   }
 
   master_authorized_networks_config {
     cidr_blocks {
-      cidr_block   = "35.235.240.0/20"
+      cidr_block   = local.ip
       display_name = "IAP"
     }
   }
@@ -35,26 +35,26 @@ resource "google_container_cluster" "devops-gke" {
     enabled = true
     resource_limits {
       resource_type = "cpu"
-      minimum       = 1
-      maximum       = 6
+      minimum       = var.cluster_min_cpu
+      maximum       = var.cluster_max_cpu
     }
     resource_limits {
       resource_type = "memory"
-      minimum       = 2
-      maximum       = 12
+      minimum       = var.cluster_min_memory
+      maximum       = var.cluster_max_memory
     }
   }
 }
 
-resource "google_container_node_pool" "devops-node-pool" {
+resource "google_container_node_pool" "devops_node_pool" {
   name       = "devops-node-pool"
-  cluster    = google_container_cluster.devops-gke.name
+  cluster    = google_container_cluster.devops_gke.name
   location   = local.region
-  node_count = 1
+  node_count = var.gke_node_count
 
   autoscaling {
-    min_node_count = 1
-    max_node_count = 2
+    min_node_count = var.gke_min_node_count
+    max_node_count = var.gke_max_node_count
   }
 
   management {
@@ -63,9 +63,9 @@ resource "google_container_node_pool" "devops-node-pool" {
   }
 
   node_config {
-    machine_type = "e2-medium"
+    machine_type = var.gke_machine_type
     disk_type    = "pd-standard"
-    disk_size_gb = 30
+    disk_size_gb = var.gke_disk_size
 
     service_account = google_service_account.devops_compute_gke_user.email
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
@@ -86,14 +86,14 @@ resource "google_container_node_pool" "devops-node-pool" {
 }
 
 output "cluster_name" {
-  value = google_container_cluster.devops-gke.name
+  value = google_container_cluster.devops_gke.name
 }
 
 output "cluster_endpoint" {
-  value     = google_container_cluster.devops-gke.endpoint
+  value     = google_container_cluster.devops_gke.endpoint
   sensitive = true
 }
 
 output "get_credentials_command" {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.devops-gke.name} --region ${local.region} --project ${local.project_id}"
+  value = "gcloud container clusters get-credentials ${google_container_cluster.devops_gke.name} --region ${local.region} --project ${local.project_id}"
 }

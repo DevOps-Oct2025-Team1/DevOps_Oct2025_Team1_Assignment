@@ -27,13 +27,13 @@ echo ""
 if [ -f .env ]; then
     echo -e "${YELLOW}Loading environment variables from .env...${NC}"
     # Export variables for docker-compose (same as PowerShell approach)
-    export $(grep -v '^#' .env | grep -v '^[[:space:]]*$' | xargs -d '\n')
+    export $(grep -v '^#' .env | grep -v '^[[:space:]]*$' | tr '\n' '\0' | xargs -0)
     echo -e "${GREEN}[OK] Environment variables loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: .env file not found. Using test defaults.${NC}"
     
     # Auth database variables (for docker-compose)
-    export POSTGRES_HOST="db"
+    export POSTGRES_HOST="auth-db"
     export POSTGRES_PORT="5432"
     export POSTGRES_USER="postgres"
     export POSTGRES_PASSWORD="postgres"
@@ -48,13 +48,27 @@ else
     export JWT_SECRET="test-secret-key"
     
     # Chats database variables (for docker-compose and Go tests)
-    export CHATS_POSTGRES_HOST="db"
+    export CHATS_POSTGRES_HOST="chats_db"
     export CHATS_POSTGRES_PORT="5432"
     export CHATS_POSTGRES_USER="postgres"
     export CHATS_POSTGRES_PASSWORD="postgres"
     export CHATS_POSTGRES_DB="chats_db"
 fi
 echo ""
+
+# Ensure CHATS_POSTGRES_* variables have defaults even if .env exists but doesn't define them
+export CHATS_POSTGRES_HOST="${CHATS_POSTGRES_HOST:-chats_db}"
+export CHATS_POSTGRES_PORT="${CHATS_POSTGRES_PORT:-5432}"
+export CHATS_POSTGRES_USER="${CHATS_POSTGRES_USER:-postgres}"
+export CHATS_POSTGRES_PASSWORD="${CHATS_POSTGRES_PASSWORD:-postgres}"
+export CHATS_POSTGRES_DB="${CHATS_POSTGRES_DB:-chats_db}"
+
+# Ensure POSTGRES_* variables have defaults (for auth DB)
+export POSTGRES_HOST="${POSTGRES_HOST:-auth-db}"
+export POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+export POSTGRES_USER="${POSTGRES_USER:-postgres}"
+export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+export POSTGRES_DB="${POSTGRES_DB:-devops_db}"
 
 # Start required services for testing
 echo -e "${YELLOW}Starting test services (databases, pub/sub, mock LLMs)...${NC}"
@@ -118,7 +132,7 @@ echo ""
 # Load test.env for auth service tests
 if [ -f "services/auth.service/test.env" ]; then
     echo -e "${YELLOW}Loading auth service test environment variables...${NC}"
-    export $(grep -v '^#' services/auth.service/test.env | grep -v '^[[:space:]]*$' | xargs -d '\n')
+    export $(grep -v '^#' services/auth.service/test.env | grep -v '^[[:space:]]*$' | tr '\n' '\0' | xargs -0)
     echo -e "${GREEN}[OK] Auth test environment loaded${NC}"
 else
     echo -e "${YELLOW}WARNING: test.env not found for auth service, using .env values${NC}"

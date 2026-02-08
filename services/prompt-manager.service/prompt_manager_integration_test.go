@@ -465,6 +465,58 @@ func TestListChatsHandler_Success(t *testing.T) {
 	}
 }
 
+// Test: Pagination - List Chats with Page Size
+func TestListChatsHandler_Pagination(t *testing.T) {
+	tc := setupTestContext(t)
+	defer tc.Close()
+
+	// Setup mock auth server
+	mockAuth := mockAuthServer()
+	defer mockAuth.Close()
+	tc.authURL = mockAuth.URL
+
+	// Create multiple test chats
+	testUserID := 123
+	chatIDs := make([]string, 3)
+	for i := 0; i < 3; i++ {
+		var chatID string
+		err := tc.db.QueryRow(
+			"INSERT INTO chats (user_id, model, title) VALUES ($1, $2, $3) RETURNING id",
+			testUserID, "gemma3", fmt.Sprintf("Test Chat %d", i+1),
+		).Scan(&chatID)
+		if err != nil {
+			t.Fatalf("Failed to create test chat: %v", err)
+		}
+		chatIDs[i] = chatID
+		defer cleanupTestChat(t, tc, chatID)
+	}
+
+	token := generateTestJWT(123, "testuser", "user")
+	req := httptest.NewRequest(http.MethodGet, "/chats?page=1&page_size=2", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+
+	callProtectedHandler(tc, chatsHandler, rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var resp ChatListResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.PageSize != 2 {
+		t.Errorf("Expected page size 2, got %d", resp.PageSize)
+	}
+
+	if resp.TotalCount < 3 {
+		t.Errorf("Expected total count >= 3, got %d", resp.TotalCount)
+	}
+}
+
 // Test: Get Chat - Success
 func TestGetChatHandler_Success(t *testing.T) {
 	tc := setupTestContext(t)
@@ -635,6 +687,12 @@ func TestSendMessageHandler_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	tc.withTestContext(func() {
+		// Save and restore the global topic to avoid leaking state across tests
+		oldTopic := topic
+		defer func() {
+			topic = oldTopic
+		}()
+
 		// Initialize topic for the test
 		topic = testTopic
 		authMiddleware(chatsHandler)(rr, req)
@@ -844,57 +902,5 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 
 	if status := rr.Code; status != http.StatusUnauthorized {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusUnauthorized)
-	}
-}
-
-// Test: Pagination - List Chats with Page Size
-func TestListChatsHandler_Pagination(t *testing.T) {
-	tc := setupTestContext(t)
-	defer tc.Close()
-
-	// Setup mock auth server
-	mockAuth := mockAuthServer()
-	defer mockAuth.Close()
-	tc.authURL = mockAuth.URL
-
-	// Create multiple test chats
-	testUserID := 123
-	chatIDs := make([]string, 3)
-	for i := 0; i < 3; i++ {
-		var chatID string
-		err := tc.db.QueryRow(
-			"INSERT INTO chats (user_id, model, title) VALUES ($1, $2, $3) RETURNING id",
-			testUserID, "gemma3", fmt.Sprintf("Test Chat %d", i+1),
-		).Scan(&chatID)
-		if err != nil {
-			t.Fatalf("Failed to create test chat: %v", err)
-		}
-		chatIDs[i] = chatID
-		defer cleanupTestChat(t, tc, chatID)
-	}
-
-	token := generateTestJWT(123, "testuser", "user")
-	req := httptest.NewRequest(http.MethodGet, "/chats?page=1&page_size=2", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	rr := httptest.NewRecorder()
-
-	callProtectedHandler(tc, chatsHandler, rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
-
-	var resp ChatListResponse
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.PageSize != 2 {
-		t.Errorf("Expected page size 2, got %d", resp.PageSize)
-	}
-
-	if resp.TotalCount < 3 {
-		t.Errorf("Expected total count >= 3, got %d", resp.TotalCount)
 	}
 }

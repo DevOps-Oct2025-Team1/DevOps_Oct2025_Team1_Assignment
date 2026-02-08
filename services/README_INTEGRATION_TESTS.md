@@ -163,7 +163,7 @@ export GEMMA3_SERVICE_URL=http://localhost:8003
 export QWEN3_SERVICE_URL=http://localhost:8004
 ```
 
-Navigate to the prompt-manager directory and run tests:
+Navigate to the prompt-manager.service directory and run tests:
 
 ```bash
 cd services/prompt-manager.service

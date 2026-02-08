@@ -14,7 +14,7 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  ci-dev:
+  ci:
     runs-on: ubuntu-latest
     # Required for uploading security results to the GitHub Security Tab
     permissions:

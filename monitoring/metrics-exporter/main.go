@@ -35,10 +35,10 @@ var (
 	)
 
 	// Auth metrics
-	authFailuresTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "auth_failures_total",
-			Help: "Total number of authentication failures",
+	authFailures = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "auth_failures",
+			Help: "Recent authentication failures in the last 5 minutes",
 		},
 		[]string{"reason"},
 	)
@@ -74,10 +74,10 @@ var (
 	)
 
 	// Security event metrics
-	securityEventsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "security_events_total",
-			Help: "Total number of security events",
+	securityEvents = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "security_events",
+			Help: "Recent security events in the last 5 minutes",
 		},
 		[]string{"event_type", "severity"},
 	)
@@ -100,12 +100,12 @@ type MetricsCollector struct {
 func init() {
 	prometheus.MustRegister(httpRequestsTotal)
 	prometheus.MustRegister(httpRequestDuration)
-	prometheus.MustRegister(authFailuresTotal)
+	prometheus.MustRegister(authFailures)
 	prometheus.MustRegister(messagesInQueue)
 	prometheus.MustRegister(messagesProcessedTotal)
 	prometheus.MustRegister(activeUsersTotal)
 	prometheus.MustRegister(userRegistrationsTotal)
-	prometheus.MustRegister(securityEventsTotal)
+	prometheus.MustRegister(securityEvents)
 	prometheus.MustRegister(serviceUptime)
 }
 
@@ -143,7 +143,7 @@ func (mc *MetricsCollector) CollectAuthMetrics(ctx context.Context) error {
 	if err != nil && err != sql.ErrNoRows {
 		log.Printf("Error collecting auth metrics: %v", err)
 	} else {
-		authFailuresTotal.WithLabelValues("invalid_credentials").Add(float64(failureCount))
+		authFailures.WithLabelValues("invalid_credentials").Set(float64(failureCount))
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func (mc *MetricsCollector) CollectSecurityMetrics(ctx context.Context) error {
 			if err := rows.Scan(&eventType, &severity, &count); err != nil {
 				continue
 			}
-			securityEventsTotal.WithLabelValues(eventType, severity).Add(float64(count))
+			securityEvents.WithLabelValues(eventType, severity).Set(float64(count))
 		}
 	}
 

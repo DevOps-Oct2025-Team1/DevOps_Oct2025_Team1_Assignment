@@ -1,7 +1,0 @@
-{
-    "user": {
-        "username": "John",
-        "is_authenticated": true,
-        "role": "admin"
-    }
-}

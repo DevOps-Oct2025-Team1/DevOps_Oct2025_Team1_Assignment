@@ -32,7 +32,7 @@ configMapGenerator:
   - name: discord-relay-config
     namespace: dev
     literals:
-      - DISCORD_CRITICAL_URLS=https://discord.com/api/webhooks/1461656075559374915/Hs7M6ZgYx2ESTZRu0MMV7_Aau3sykxOi_0PTSNUeQqjqUQRBmaVZbRCQMRhxIcbMzK8U,https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j
+      - DISCORD_CRITICAL_URLS=https://discord.com/api/webhooks/1461656075559374915/Hs7M6ZgYx2ESTZRu0MMV7_Aau3sykxOi_0PTSNUeQqjqUQRBmaVZbRCQMRhxIcbMzK8U,https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j,https://pushcall.me/api/call?api_key=r65EL0Q1bcEn&from=17403184219&to=6588985836
       - DISCORD_WARNING_URLS=https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j
       - DISCORD_MAIN_URLS=https://discord.com/api/webhooks/1460913645713359015/uHIWeLmLWV3Ct8qr6kgBRkX5DWxLUrtZTfEKwVl9Es1pefwlZ1yS5CcsEx6upATmiIyf
     options:

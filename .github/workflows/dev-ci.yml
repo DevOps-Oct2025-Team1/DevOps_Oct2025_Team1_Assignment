@@ -19,6 +19,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Notify CI Start
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ job.status }}
+          title: "🚀 Dev CI Pipeline Started"
+          description: |
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run ID:** ${{ github.run_id }}
+          color: 0x0099ff
+          username: GitHub Actions
+
       # --- START SERVICES FOR DAST (Using Kubernetes) ---
       - name: Set up Kind cluster
         uses: helm/kind-action@v1.7.0
@@ -133,6 +148,22 @@ jobs:
           go test -v -run 'TestUserLoginAndAuthenticationFlow|TestAdminUserManagementFlow|TestUnauthorizedAccessPrevention' ./acceptance_test.go -timeout 5m
         continue-on-error: false
 
+      - name: Notify Integration Tests Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_I }}
+          status: ${{ steps.acceptance_tests.outcome }}
+          title: "🧪 Integration & Acceptance Tests"
+          description: |
+            **Status:** ${{ steps.acceptance_tests.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
+
       # --- SECURITY PHASE (DAST) ---
       - name: Run DAST (OWASP ZAP)
         id: dast
@@ -152,6 +183,23 @@ jobs:
             report_md.md
             report_json.json
 
+      - name: Notify DAST Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ steps.dast.outcome }}
+          title: "🔒 DAST Security Scan"
+          description: |
+            **Status:** ${{ steps.dast.outcome }}
+            **Tool:** OWASP ZAP
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
+
       - name: Shutdown Services
         if: always()
         run: |
@@ -170,3 +218,20 @@ jobs:
         run: |
           echo "Executing Terraform apply to staging..."
           echo "Updating Kubernetes manifests for staging..."
+
+      - name: Notify CI Completion
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ job.status }}
+          title: "✅ Dev CI Pipeline Complete"
+          description: |
+            **Final Status:** ${{ job.status }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Event:** ${{ github.event_name }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions

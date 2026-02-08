@@ -32,6 +32,13 @@ jobs:
         id: unit_tests
         run: echo "Unit tests will run here"
 
+      # --- DOWNLOAD DEPENDENCIES FOR SAST ---
+      - name: Download Go Dependencies
+        run: |
+          cd services/api-gateway.service && go mod download && cd ../..
+          cd services/auth.service && go mod download && cd ../..
+          cd services/prompt-manager.service && go mod download && cd ../..
+          cd k8s-local/mock-llm.service && go mod download && cd ../..
     
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)

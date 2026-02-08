@@ -20,11 +20,13 @@ resources:
 
 configMapGenerator:
   - name: grafana-dashboards
+    namespace: dev
     files:
       - grafana/dashboards/k8s-monitoring.json
     options:
       disableNameSuffixHash: true
   - name: alertmanager-config
+    namespace: dev
     files:
       - alertmanager/alertmanager-config.yaml
     options:

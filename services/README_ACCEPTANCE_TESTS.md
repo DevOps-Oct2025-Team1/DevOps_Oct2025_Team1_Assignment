@@ -69,6 +69,20 @@ Acceptance tests run automatically in the **Dev Branch CI** pipeline after:
 
 **Pipeline Position:** Between Integration Tests and DAST Security Scan
 
+### CI Test Scope
+Due to CI resource constraints, only **auth/admin services** are deployed in the CI environment.
+
+**Tests run in CI:**
+- ✅ TestUserLoginAndAuthenticationFlow
+- ✅ TestAdminUserManagementFlow
+- ✅ TestUnauthorizedAccessPrevention
+
+**Tests skipped in CI** (require prompt-manager deployment):
+- ⏭️ TestPromptCreationFlow
+- ⏭️ TestEndToEndUserJourney
+
+**Full test suite** runs when you test locally with all services deployed via docker-compose.
+
 ## Test Maintenance
 
 ### Adding New Tests

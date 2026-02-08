@@ -55,6 +55,7 @@ func makeRequest(t *testing.T, method, endpoint string, body interface{}, token 
 }
 
 // AC1: User Login and Authentication Flow
+// CI: ✅ Runs in CI (auth service only)
 // Acceptance Criteria:
 // - Existing user can login with valid credentials
 // - User receives JWT token upon login
@@ -99,6 +100,7 @@ func TestUserLoginAndAuthenticationFlow(t *testing.T) {
 }
 
 // AC2: Admin User Management Flow
+// CI: ✅ Runs in CI (auth service only)
 // Acceptance Criteria:
 // - Admin can login with admin credentials
 // - Admin can view all users
@@ -160,6 +162,7 @@ func TestAdminUserManagementFlow(t *testing.T) {
 }
 
 // AC3: Prompt/Chat Creation Flow
+// CI: ⏭️ Skipped in CI (requires prompt-manager service)
 // Acceptance Criteria:
 // - Authenticated user can create a new chat/prompt
 // - User can retrieve their chat history
@@ -228,6 +231,7 @@ func TestPromptCreationFlow(t *testing.T) {
 }
 
 // AC4: Unauthorized Access Prevention
+// CI: ✅ Runs in CI (auth service only)
 // Acceptance Criteria:
 // - Unauthenticated users cannot access protected resources
 // - Invalid tokens are rejected
@@ -275,6 +279,7 @@ func TestUnauthorizedAccessPrevention(t *testing.T) {
 }
 
 // AC5: End-to-End User Journey
+// CI: ⏭️ Skipped in CI (requires prompt-manager service)
 // Acceptance Criteria:
 // - Complete workflow from login to prompt submission works seamlessly
 // - All integrated services communicate properly

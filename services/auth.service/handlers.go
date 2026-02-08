@@ -52,7 +52,7 @@ func initDB() {
 		" dbname=" + os.Getenv("DB_NAME") +
 		" sslmode=disable"
 
-	log.Println("Connecting to database with:", connStr)
+	log.Println("Connecting to database with host:", os.Getenv("DB_HOST"), "port:", os.Getenv("DB_PORT"), "dbname:", os.Getenv("DB_NAME"))
 
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {

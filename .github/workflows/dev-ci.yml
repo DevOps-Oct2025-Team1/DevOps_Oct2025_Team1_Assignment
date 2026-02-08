@@ -68,6 +68,10 @@ jobs:
           export POSTGRES_PASSWORD=app_password
           export JWT_SECRET=test-secret-key-for-ci
           export API_GATEWAY_IP=""
+          export DEFAULT_TESTUSER_USERNAME=testuser
+          export DEFAULT_TESTUSER_PASSWORD=testpass
+          export DEFAULT_ADMIN_USERNAME=admin
+          export DEFAULT_ADMIN_PASSWORD=adminpass
           
           # Generate manifests with envsubst, remove hardcoded namespaces, and apply to dev
           kustomize build services/auth.service | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev

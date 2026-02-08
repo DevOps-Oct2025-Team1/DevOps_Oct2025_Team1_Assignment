@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	"database/sql"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"

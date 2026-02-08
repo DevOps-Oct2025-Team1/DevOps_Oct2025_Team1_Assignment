@@ -8,12 +8,18 @@ route:
   repeat_interval: 12h
   receiver: 'default-receiver'
   routes:
-    # Critical alerts → Developer + QA
+    # Heartbeat alerts -> both QA + Developer channels every 5m (info)
+    - match:
+        alertname: SystemHeartbeat
+      receiver: 'default-receiver'
+      repeat_interval: 5m
+      continue: false
+    # Critical alerts -> Developer + QA
     - match:
         severity: critical
       receiver: 'discord-critical'
       continue: false
-    # Warning alerts → QA only
+    # Warning alerts -> QA only
     - match:
         severity: warning
       receiver: 'discord-warning'

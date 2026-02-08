@@ -259,7 +259,7 @@ func TestValidateHandler_InvalidToken(t *testing.T) {
 }
 
 // Test: Get All Users - Success (Admin)
-func TestGetUsersHandler_Success(t *testing.T) {
+func TestGetUsersHandler_Success_Integration(t *testing.T) {
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -289,7 +289,7 @@ func TestGetUsersHandler_Success(t *testing.T) {
 }
 
 // Test: Create User - Success
-func TestCreateUserHandler_Success(t *testing.T) {
+func TestCreateUserHandler_Success_Integration(t *testing.T) {
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -379,7 +379,7 @@ func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 }
 
 // Test: Update User - Success
-func TestEditUserHandler_Success(t *testing.T) {
+func TestEditUserHandler_Success_Integration(t *testing.T) {
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -452,7 +452,7 @@ func TestEditUserHandler_Success(t *testing.T) {
 }
 
 // Test: Delete User - Success
-func TestDeleteUserHandler_Success(t *testing.T) {
+func TestDeleteUserHandler_Success_Integration(t *testing.T) {
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()

@@ -120,8 +120,8 @@ func TestReverseProxy_BackendError(t *testing.T) {
 	// This should handle the error gracefully
 	proxy.ServeHTTP(w, req)
 
-	// The proxy will return an error response when backend is unavailable
-	if w.Code != http.StatusBadGateway && w.Code != http.StatusInternalServerError {
-		t.Logf("Backend unavailable returned status: %v (may vary by implementation)", w.Code)
+	// The proxy should return an error (5xx) response when backend is unavailable
+	if w.Code < 500 || w.Code >= 600 {
+		t.Errorf("expected 5xx error status when backend is unavailable, got %d", w.Code)
 	}
 }

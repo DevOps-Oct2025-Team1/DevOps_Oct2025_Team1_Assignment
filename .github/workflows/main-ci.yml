@@ -13,7 +13,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
 
 jobs:
-  prod-release:
+  ci:
     runs-on: ubuntu-latest
     permissions:
       security-events: write

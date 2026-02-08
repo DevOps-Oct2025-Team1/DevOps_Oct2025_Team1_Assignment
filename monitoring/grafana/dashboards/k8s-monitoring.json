@@ -90,7 +90,7 @@
         "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
         "targets": [
           {
-            "expr": "sum(increase(prompts_blocked_total[5m])) or on() vector(0)",
+            "expr": "sum(increase(http_requests_total{status=~\"4..\"}[5m])) or on() vector(0)",
             "refId": "A"
           }
         ],
@@ -373,7 +373,7 @@
         "gridPos": { "x": 12, "y": 11, "w": 6, "h": 4 },
         "targets": [
           {
-            "expr": "sum(rate(messages_sent_total[5m])) or on() vector(0)",
+            "expr": "sum(rate(messages_processed_total[5m])) or on() vector(0)",
             "refId": "A"
           }
         ],

@@ -169,6 +169,8 @@ func (mc *MetricsCollector) CollectUserMetrics(ctx context.Context) error {
 	err = mc.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&totalUsers)
 	if err != nil && err != sql.ErrNoRows {
 		log.Printf("Error counting users: %v", err)
+	} else {
+		userRegistrationsTotal.Add(0) // Initialize counter
 	}
 
 	return nil

@@ -116,7 +116,7 @@ services:
       - "8002:8002"
     networks:
       - llm-network
-
+      - auth-network
   # API Gateway
   api-gateway:
     build: ./services/api-gateway.service/

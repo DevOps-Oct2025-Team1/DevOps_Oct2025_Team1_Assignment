@@ -1,7 +1,7 @@
 resource "google_container_cluster" "devops-gke" {
   name                     = "devops-gke"
   location                 = local.region
-  network                  = google_compute_network.devops-vpc.id
+  network                  = google_compute_network.devops_vpc.id
   subnetwork               = google_compute_subnetwork.devops-subnet-private.id
   networking_mode          = "VPC_NATIVE"
   deletion_protection      = false

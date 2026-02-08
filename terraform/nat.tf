@@ -1,7 +1,7 @@
 resource "google_compute_router" "devops-router" {
   name    = "devops-router"
   region  = local.region
-  network = google_compute_network.devops-vpc.id
+  network = google_compute_network.devops_vpc.id
 }
 
 resource "google_compute_router_nat" "devops-nat" {

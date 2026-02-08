@@ -1,6 +1,6 @@
 resource "google_compute_firewall" "allow_iap_ssh" {
   name    = "allow-iap-ssh"
-  network = google_compute_network.devops-vpc.name
+  network = google_compute_network.devops_vpc.name
 
   allow {
     protocol = "tcp"

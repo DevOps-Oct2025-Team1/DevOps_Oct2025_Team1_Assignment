@@ -43,7 +43,7 @@ func main() {
 
 	//Routes to Prompt Manager service
 	mux.Handle("/chats/", http.StripPrefix("/chats", reverseProxy(prompt_manager_url+"/chats")))
-	mux.Handle("/chats", reverseProxy(prompt_manager_url))
+	mux.Handle("/chats", reverseProxy(prompt_manager_url+"/chats"))
 	mux.Handle("/models", reverseProxy(prompt_manager_url))
 
 	// Get port from environment or default to 8000

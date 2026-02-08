@@ -214,6 +214,8 @@ __marimo__/
 services/auth.service/auth-service
 services/api-gateway.service/api-gateway
 services/admin.service/admin-service
+services/prompt-manager.service/prompt-manager-service
+services/prompt-manager.service/prompt-manager-service.exe
 coverage.txt
 coverage
 

@@ -283,7 +283,7 @@
         "gridPos": { "x": 16, "y": 6, "w": 8, "h": 4 },
         "targets": [
           {
-            "expr": "(sum(rate(gke_pod_network_sent_bytes_total[5m])) * 8 / 1000000) or ((sum(rate(node_network_transmit_bytes_total{device!~\"lo\"}[5m])) + sum(rate(node_network_receive_bytes_total{device!~\"lo\"}[5m]))) * 8 / 1000000) or on() vector(0)",
+            "expr": "((sum(rate(gke_pod_network_sent_bytes_total[5m])) + sum(rate(gke_pod_network_received_bytes_total[5m]))) * 8 / 1000000) or on() vector(0)",
             "refId": "A"
           }
         ],

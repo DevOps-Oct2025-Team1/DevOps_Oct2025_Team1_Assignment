@@ -8,6 +8,8 @@ resources:
   - prometheus/deployment.yaml
   - prometheus/services.yaml
   - grafana/deployment.yaml
+  - alertmanager/deployment.yaml
+  - alertmanager/service.yaml
   - metrics-exporter/deployment.yaml
   - exporters/node-exporter.yaml
   - exporters/kube-state-metrics.yaml
@@ -20,5 +22,18 @@ configMapGenerator:
   - name: grafana-dashboards
     files:
       - grafana/dashboards/k8s-monitoring.json
+    options:
+      disableNameSuffixHash: true
+  - name: alertmanager-config
+    files:
+      - alertmanager/alertmanager-config.yaml
+    options:
+      disableNameSuffixHash: true
+  - name: discord-relay-config
+    namespace: dev
+    literals:
+      - DISCORD_CRITICAL_URLS=https://discord.com/api/webhooks/1461656075559374915/Hs7M6ZgYx2ESTZRu0MMV7_Aau3sykxOi_0PTSNUeQqjqUQRBmaVZbRCQMRhxIcbMzK8U,https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j
+      - DISCORD_WARNING_URLS=https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j
+      - DISCORD_MAIN_URLS=https://discord.com/api/webhooks/1460913645713359015/uHIWeLmLWV3Ct8qr6kgBRkX5DWxLUrtZTfEKwVl9Es1pefwlZ1yS5CcsEx6upATmiIyf
     options:
       disableNameSuffixHash: true

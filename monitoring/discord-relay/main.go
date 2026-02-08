@@ -27,15 +27,17 @@ type DiscordMessage struct {
 
 func main() {
 	port := getEnv("PORT", "8080")
-	devQa := getEnv("DISCORD_WEBHOOK_URLS", "")
-	main := getEnv("DISCORD_MAIN_WEBHOOK_URLS", "")
+	critical := getEnv("DISCORD_CRITICAL_URLS", "")
+	warning := getEnv("DISCORD_WARNING_URLS", "")
+	main := getEnv("DISCORD_MAIN_URLS", "")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("/webhook/dev-qa", makeHandler(devQa))
+	mux.HandleFunc("/webhook/critical", makeHandler(critical))
+	mux.HandleFunc("/webhook/warning", makeHandler(warning))
 	mux.HandleFunc("/webhook/main", makeHandler(main))
 
 	server := &http.Server{

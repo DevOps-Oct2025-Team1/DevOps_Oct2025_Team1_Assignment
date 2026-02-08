@@ -21,7 +21,18 @@ spec:
           env:
             - name: PORT
               value: "8080"
-            - name: DISCORD_WEBHOOK_URLS
-              value: "https://discord.com/api/webhooks/1461656075559374915/Hs7M6ZgYx2ESTZRu0MMV7_Aau3sykxOi_0PTSNUeQqjqUQRBmaVZbRCQMRhxIcbMzK8U,https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j"
-            - name: DISCORD_MAIN_WEBHOOK_URLS
-              value: "https://discord.com/api/webhooks/1460913645713359015/uHIWeLmLWV3Ct8qr6kgBRkX5DWxLUrtZTfEKwVl9Es1pefwlZ1yS5CcsEx6upATmiIyf"
+            - name: DISCORD_CRITICAL_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: discord-relay-config
+                  key: DISCORD_CRITICAL_URLS
+            - name: DISCORD_WARNING_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: discord-relay-config
+                  key: DISCORD_WARNING_URLS
+            - name: DISCORD_MAIN_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: discord-relay-config
+                  key: DISCORD_MAIN_URLS

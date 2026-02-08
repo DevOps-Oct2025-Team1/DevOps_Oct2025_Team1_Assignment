@@ -16,7 +16,7 @@ data:
     alerting:
       alertmanagers:
         - static_configs:
-            - targets: []
+            - targets: ['alertmanager:9093']
 
     # Rule files
     rule_files:
@@ -132,14 +132,6 @@ data:
             action: replace
             target_label: kubernetes_pod_name
 
-      # Custom metrics exporter for app-specific metrics
-      - job_name: 'custom-app-metrics'
-        static_configs:
-          - targets: ['metrics-exporter:9090']
-        relabel_configs:
-          - target_label: job
-            replacement: 'app-metrics'
-
       # GCP Cloud Monitoring Exporter
       - job_name: 'gcp-monitoring'
         static_configs:
@@ -199,14 +191,14 @@ data:
         interval: 30s
         rules:
           - alert: HighAuthFailureRate
-            expr: rate(auth_failures_total[5m]) > 10
+            expr: sum(auth_failures) > 50
             for: 2m
             labels:
               severity: critical
               category: security
             annotations:
               summary: "High authentication failure rate detected"
-              description: "Auth failure rate is {{ $value }} failures/sec on {{ $labels.instance }}"
+              description: "{{ $value }} auth failures in the last 5 minutes on {{ $labels.instance }}"
 
           - alert: UnauthorizedAccessAttempt
             expr: increase(http_requests_total{status="401"}[5m]) > 50

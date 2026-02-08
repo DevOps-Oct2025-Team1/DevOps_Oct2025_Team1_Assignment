@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discord-relay
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discord-relay
+  template:
+    metadata:
+      labels:
+        app: discord-relay
+    spec:
+      containers:
+        - name: discord-relay
+          image: gcr.io/dop-assignment-team1/discord-relay:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DISCORD_WEBHOOK_URLS
+              value: "https://discord.com/api/webhooks/1461656075559374915/Hs7M6ZgYx2ESTZRu0MMV7_Aau3sykxOi_0PTSNUeQqjqUQRBmaVZbRCQMRhxIcbMzK8U,https://discord.com/api/webhooks/1462009577909518336/648LwZgL4dOe9Y9AY43CrusAm2rubEVKUar-fKHyfhppT1Fzpnx26K6NI-Ut01kuVD5j"
+            - name: DISCORD_MAIN_WEBHOOK_URLS
+              value: "https://discord.com/api/webhooks/1460913645713359015/uHIWeLmLWV3Ct8qr6kgBRkX5DWxLUrtZTfEKwVl9Es1pefwlZ1yS5CcsEx6upATmiIyf"

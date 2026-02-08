@@ -13,6 +13,8 @@ resources:
   - exporters/kube-state-metrics.yaml
   - gcp-exporter/deployment.yaml
   - gcp-exporter/service.yaml
+  - discord-relay/deployment.yaml
+  - discord-relay/service.yaml
 
 configMapGenerator:
   - name: grafana-dashboards

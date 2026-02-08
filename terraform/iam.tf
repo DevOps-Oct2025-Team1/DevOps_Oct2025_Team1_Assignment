@@ -22,3 +22,10 @@ resource "google_storage_bucket_iam_member" "gke_bucket_access" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.devops_compute_gke_user.email}"
 }
+
+resource "google_project_iam_member" "devops_gke_artifact_registry_writer" {
+  project = local.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.devops_compute_gke_user.email}"
+}
+

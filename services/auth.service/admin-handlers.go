@@ -258,6 +258,11 @@ func deleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if userID <= 0 {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
 	// Check if user exists before deletion
 	var username string
 	err = db.QueryRow("SELECT username FROM users WHERE id = $1", userID).Scan(&username)

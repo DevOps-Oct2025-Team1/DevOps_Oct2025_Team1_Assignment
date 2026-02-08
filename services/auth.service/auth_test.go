@@ -1,13 +1,13 @@
 package main
 
 import (
+	"database/sql"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 	"os"
 	"testing"
 	"time"
-	"database/sql"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/DATA-DOG/go-sqlmock"
 )
 
 // setupTestJWT initializes the JWT secret for testing
@@ -56,7 +56,7 @@ func TestGenerateJWT_Success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token, err := generateJWT(tt.username, tt.role)
+			token, err := generateJWT(1, tt.username, tt.role)
 
 			if err != nil {
 				t.Errorf("generateJWT() error = %v", err)
@@ -98,7 +98,7 @@ func TestGenerateJWT_WithoutSecret(t *testing.T) {
 	// Clear JWT secret
 	jwtSecret = nil
 
-	_, err := generateJWT("testuser", "user")
+	_, err := generateJWT(1, "testuser", "user")
 
 	// Should return an error when secret is not set
 	if err == nil {
@@ -141,7 +141,7 @@ func TestValidateJWT_ValidToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Generate token
-			token, err := generateJWT(tt.username, tt.role)
+			token, err := generateJWT(1, tt.username, tt.role)
 			if err != nil {
 				t.Fatalf("Failed to generate token: %v", err)
 			}

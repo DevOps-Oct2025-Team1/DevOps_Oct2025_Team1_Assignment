@@ -42,13 +42,13 @@ func setupAdminTestDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 
 // generateAdminToken creates a valid admin JWT
 func generateAdminToken() string {
-	token, _ := generateJWT("admin", "admin")
+	token, _ := generateJWT(1, "admin", "admin")
 	return token
 }
 
 // generateUserToken creates a valid user JWT
 func generateUserToken() string {
-	token, _ := generateJWT("user", "user")
+	token, _ := generateJWT(2, "user", "user")
 	return token
 }
 
@@ -486,7 +486,7 @@ func TestEditUserHandler_InvalidID(t *testing.T) {
 			if w.Code != http.StatusBadRequest {
 				t.Errorf("Status code = %v, want %v", w.Code, http.StatusBadRequest)
 			}
-			
+
 			if !strings.Contains(w.Body.String(), "Invalid user ID") {
 				t.Errorf("Expected 'Invalid user ID' error, got: %v", w.Body.String())
 			}
@@ -620,4 +620,3 @@ func TestDeleteUserHandler_UserNotFound(t *testing.T) {
 		t.Errorf("Expected 'User not found' error, got: %v", w.Body.String())
 	}
 }
-

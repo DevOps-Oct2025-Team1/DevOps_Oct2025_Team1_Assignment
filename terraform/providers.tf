@@ -22,10 +22,10 @@ provider "google" {
 }
 
 provider "kubernetes" {
-  host  = "https://${google_container_cluster.devops-gke.endpoint}"
+  host  = "https://${google_container_cluster.devops_gke.endpoint}"
   token = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.devops-gke.master_auth[0].cluster_ca_certificate
+    google_container_cluster.devops_gke.master_auth[0].cluster_ca_certificate
   )
 }
 

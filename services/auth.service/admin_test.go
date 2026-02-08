@@ -396,7 +396,9 @@ func TestCreateUserHandler_AllValidRoles(t *testing.T) {
 			}
 
 			var user User
-			json.Unmarshal(w.Body.Bytes(), &user)
+			if err := json.Unmarshal(w.Body.Bytes(), &user); err != nil {
+				t.Fatalf("Failed to unmarshal response body into User: %v", err)
+			}
 
 			if user.Role != role {
 				t.Errorf("Role = %v, want %v", user.Role, role)

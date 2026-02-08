@@ -86,14 +86,18 @@ func TestUserLoginAndAuthenticationFlow(t *testing.T) {
 	}
 	t.Logf("✓ Login successful, token received")
 
-	// Step 2: Use token for authenticated request
+	// Step 2: Use token for authenticated request (test against admin endpoint - should be rejected)
 	t.Log("Step 2: Accessing protected resource with token...")
-	resp, _ = makeRequest(t, "GET", "/chats", nil, token)
+	resp, _ = makeRequest(t, "GET", "/admin/users", nil, token)
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		t.Logf("Warning: Protected resource returned status %d (may not be fully implemented)", resp.StatusCode)
+	// Regular user should be denied admin access (but token is valid)
+	if resp.StatusCode == http.StatusOK {
+		t.Fatalf("Regular user should not have admin access!")
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		t.Logf("✓ Token authentication successful (correctly denied admin access with status %d)", resp.StatusCode)
 	} else {
-		t.Logf("✓ Token authentication successful")
+		t.Logf("✓ Token processed (status %d)", resp.StatusCode)
 	}
 
 	t.Log("✅ ACCEPTANCE TEST PASSED: User Login and Authentication Flow")
@@ -136,10 +140,9 @@ func TestAdminUserManagementFlow(t *testing.T) {
 	resp, body = makeRequest(t, "GET", "/admin/users", nil, adminToken)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Logf("Warning: Failed to retrieve users (status %d), endpoint may not be implemented yet", resp.StatusCode)
-	} else {
-		t.Logf("✓ User list retrieved successfully")
+		t.Fatalf("Failed to retrieve users (status %d): %s", resp.StatusCode, string(body))
 	}
+	t.Logf("✓ User list retrieved successfully")
 
 	// Step 3: Create new user as admin
 	t.Log("Step 3: Creating new user as admin...")
@@ -153,10 +156,9 @@ func TestAdminUserManagementFlow(t *testing.T) {
 	resp, body = makeRequest(t, "POST", "/admin/users", newUser, adminToken)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		t.Logf("Warning: User creation failed (status %d), endpoint may not be fully implemented", resp.StatusCode)
-	} else {
-		t.Logf("✓ New user created by admin")
+		t.Fatalf("User creation failed (status %d): %s", resp.StatusCode, string(body))
 	}
+	t.Logf("✓ New user created by admin")
 
 	t.Log("✅ ACCEPTANCE TEST PASSED: Admin User Management Flow")
 }
@@ -197,35 +199,32 @@ func TestPromptCreationFlow(t *testing.T) {
 	resp, body = makeRequest(t, "GET", "/models", nil, userToken)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Logf("Warning: Failed to retrieve models (status %d): %s", resp.StatusCode, string(body))
-	} else {
-		t.Logf("✓ Models retrieved successfully")
+		t.Fatalf("Failed to retrieve models (status %d): %s", resp.StatusCode, string(body))
 	}
+	t.Logf("✓ Models retrieved successfully")
 
 	// Step 3: Create new chat/prompt
 	t.Log("Step 3: Creating new chat...")
 	newChat := map[string]interface{}{
 		"prompt": "What is the meaning of life?",
-		"model":  "gpt-3.5-turbo",
+		"model":  "gemma3",
 	}
 
 	resp, body = makeRequest(t, "POST", "/chats", newChat, userToken)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		t.Logf("Warning: Chat creation returned status %d: %s", resp.StatusCode, string(body))
-	} else {
-		t.Logf("✓ Chat created successfully")
+		t.Fatalf("Chat creation failed (status %d): %s", resp.StatusCode, string(body))
 	}
+	t.Logf("✓ Chat created successfully")
 
 	// Step 4: Retrieve chat history
 	t.Log("Step 4: Retrieving chat history...")
 	resp, body = makeRequest(t, "GET", "/chats", nil, userToken)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Logf("Warning: Chat retrieval returned status %d: %s", resp.StatusCode, string(body))
-	} else {
-		t.Logf("✓ Chat history retrieved successfully")
+		t.Fatalf("Failed to retrieve chat history (status %d): %s", resp.StatusCode, string(body))
 	}
+	t.Logf("✓ Chat history retrieved successfully")
 
 	t.Log("✅ ACCEPTANCE TEST PASSED: Prompt Creation Flow")
 }
@@ -263,17 +262,25 @@ func TestUnauthorizedAccessPrevention(t *testing.T) {
 	}
 
 	resp, body := makeRequest(t, "POST", "/auth/login", testCreds, "")
-	if resp.StatusCode == http.StatusOK {
-		var loginResp map[string]interface{}
-		json.Unmarshal(body, &loginResp)
-		if userToken, ok := loginResp["token"].(string); ok {
-			resp, _ = makeRequest(t, "GET", "/admin/users", nil, userToken)
-			if resp.StatusCode == http.StatusOK {
-				t.Fatalf("Regular user can access admin endpoints!")
-			}
-			t.Logf("✓ Regular user blocked from admin endpoints (status %d)", resp.StatusCode)
-		}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to log in as regular user (status %d, body: %s)", resp.StatusCode, string(body))
 	}
+
+	var loginResp map[string]interface{}
+	if err := json.Unmarshal(body, &loginResp); err != nil {
+		t.Fatalf("Failed to parse login response: %v", err)
+	}
+
+	userToken, ok := loginResp["token"].(string)
+	if !ok || userToken == "" {
+		t.Fatalf("Login response did not contain a valid token: %#v", loginResp)
+	}
+
+	resp, _ = makeRequest(t, "GET", "/admin/users", nil, userToken)
+	if resp.StatusCode == http.StatusOK {
+		t.Fatalf("Regular user can access admin endpoints!")
+	}
+	t.Logf("✓ Regular user blocked from admin endpoints (status %d)", resp.StatusCode)
 
 	t.Log("✅ ACCEPTANCE TEST PASSED: Unauthorized Access Prevention")
 }
@@ -298,29 +305,43 @@ func TestEndToEndUserJourney(t *testing.T) {
 	}
 
 	var loginResp map[string]interface{}
-	json.Unmarshal(body, &loginResp)
-	token := loginResp["token"].(string)
+	if err := json.Unmarshal(body, &loginResp); err != nil {
+		t.Fatalf("Failed to parse login response: %v", err)
+	}
+	token, ok := loginResp["token"].(string)
+	if !ok || token == "" {
+		t.Fatalf("No token received in login response")
+	}
 	t.Logf("✓ User logged in")
 
 	// Journey Step 2: User explores available models
 	t.Log("Journey Step 2: Exploring available models...")
-	resp, _ = makeRequest(t, "GET", "/models", nil, token)
-	t.Logf("✓ Models endpoint accessed (status %d)", resp.StatusCode)
+	resp, body = makeRequest(t, "GET", "/models", nil, token)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to retrieve models (status %d): %s", resp.StatusCode, string(body))
+	}
+	t.Logf("✓ Models endpoint accessed successfully")
 
 	// Journey Step 3: User creates their first prompt
 	t.Log("Journey Step 3: Creating first prompt...")
 	firstPrompt := map[string]interface{}{
 		"prompt": "Hello, AI! This is my first message.",
-		"model":  "gpt-3.5-turbo",
+		"model":  "gemma3",
 	}
 
-	resp, _ = makeRequest(t, "POST", "/chats", firstPrompt, token)
-	t.Logf("✓ First prompt created (status %d)", resp.StatusCode)
+	resp, body = makeRequest(t, "POST", "/chats", firstPrompt, token)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Failed to create prompt (status %d): %s", resp.StatusCode, string(body))
+	}
+	t.Logf("✓ First prompt created successfully")
 
 	// Journey Step 4: User checks their chat history
 	t.Log("Journey Step 4: Checking chat history...")
-	resp, _ = makeRequest(t, "GET", "/chats", nil, token)
-	t.Logf("✓ Chat history accessed (status %d)", resp.StatusCode)
+	resp, body = makeRequest(t, "GET", "/chats", nil, token)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to retrieve chat history (status %d): %s", resp.StatusCode, string(body))
+	}
+	t.Logf("✓ Chat history accessed successfully")
 
 	t.Log("✅ ACCEPTANCE TEST PASSED: End-to-End User Journey")
 	t.Log("🎉 User successfully completed entire journey from login to prompt interaction")

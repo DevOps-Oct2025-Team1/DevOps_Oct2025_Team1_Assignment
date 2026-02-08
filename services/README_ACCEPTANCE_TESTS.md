@@ -5,11 +5,11 @@ Acceptance tests verify complete user workflows and business requirements for th
 
 ## Test Coverage
 
-### AC1: User Registration and Login Flow
-**Business Value:** New users can onboard to the platform  
+### AC1: User Login and Authentication Flow
+**Business Value:** Users can authenticate and access the platform  
 **Acceptance Criteria:**
-- ✅ New user can register with valid credentials
-- ✅ Registered user can login and receive JWT token
+- ✅ Existing user can login with valid credentials
+- ✅ User receives JWT token upon successful login
 - ✅ Token can be used for authenticated requests
 
 ### AC2: Admin User Management Flow
@@ -37,7 +37,7 @@ Acceptance tests verify complete user workflows and business requirements for th
 ### AC5: End-to-End User Journey
 **Business Value:** Complete user experience validation  
 **Acceptance Criteria:**
-- ✅ Complete workflow from registration to prompt submission
+- ✅ Complete workflow from login to prompt submission
 - ✅ All integrated services communicate properly
 - ✅ Seamless user experience across the platform
 
@@ -55,7 +55,7 @@ cd services
 go test -v ./acceptance_test.go
 
 # Run specific test
-go test -v -run TestUserRegistrationAndLoginFlow ./acceptance_test.go
+go test -v -run TestUserLoginAndAuthenticationFlow ./acceptance_test.go
 
 # Run with timeout
 go test -v ./acceptance_test.go -timeout 5m

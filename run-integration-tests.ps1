@@ -28,7 +28,7 @@ if (Test-Path .env) {
     Write-Host "WARNING: .env file not found. Using test defaults." -ForegroundColor Yellow
     
     # Auth database variables (for docker-compose)
-    $env:POSTGRES_HOST = "db"
+    $env:POSTGRES_HOST = "auth-db"
     $env:POSTGRES_PORT = "5432"
     $env:POSTGRES_USER = "postgres"
     $env:POSTGRES_PASSWORD = "postgres"
@@ -43,7 +43,7 @@ if (Test-Path .env) {
     $env:JWT_SECRET = "test-secret-key"
     
     # Chats database variables (for docker-compose and Go tests)
-    $env:CHATS_POSTGRES_HOST = "db"
+    $env:CHATS_POSTGRES_HOST = "chats_db"
     $env:CHATS_POSTGRES_PORT = "5432"
     $env:CHATS_POSTGRES_USER = "postgres"
     $env:CHATS_POSTGRES_PASSWORD = "postgres"

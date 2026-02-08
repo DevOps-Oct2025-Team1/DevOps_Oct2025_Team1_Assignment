@@ -122,6 +122,19 @@ jobs:
         id: integration_tests
         run: echo "Integration tests will run here"
 
+      # --- ACCEPTANCE TESTING PHASE ---
+      - name: Set up Go for Acceptance Tests
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      
+      - name: Run Acceptance Tests
+        id: acceptance_tests
+        run: |
+          cd services
+          go test -v -run Test ./acceptance_test.go -timeout 5m
+        continue-on-error: false
+
       # --- SECURITY PHASE (DAST) ---
       - name: Run DAST (OWASP ZAP)
         id: dast

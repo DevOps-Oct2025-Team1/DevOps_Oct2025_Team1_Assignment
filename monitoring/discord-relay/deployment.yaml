@@ -36,3 +36,8 @@ spec:
                 configMapKeyRef:
                   name: discord-relay-config
                   key: DISCORD_MAIN_URLS
+            - name: DISCORD_PHONE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: discord-relay-config
+                  key: DISCORD_PHONE_URL

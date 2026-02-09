@@ -4,9 +4,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
+
+type User struct {
+	ID        int       `json:"id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 type User_Auth struct {
 	ID           int    `json:"id"`
@@ -25,6 +33,24 @@ type UpdateUserRequest struct {
 	Role string `json:"role"`
 }
 
+type ValidateRequest struct {
+	Token string `json:"token"`
+}
+
+type ValidateResponse struct {
+	Valid bool   `json:"valid"`
+	Role  string `json:"role"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -37,8 +63,6 @@ func main() {
 	//Authorization
 	mux.HandleFunc("/validate", validateHandler)
 
-	//REMEMBER TO REMOVE
-	// mux.HandleFunc("/getAIModels", getAIModelsHandler)
 	mux.HandleFunc("GET /users", authMiddleware(getUsersHandler))
 	mux.HandleFunc("POST /users", authMiddleware(createUserHandler))
 	mux.HandleFunc("PUT /users/", authMiddleware(editUserHandler))
@@ -56,7 +80,4 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
-
-	log.Println("Auth service running on :8001")
-	log.Fatal(http.ListenAndServe(":8001", mux))
 }

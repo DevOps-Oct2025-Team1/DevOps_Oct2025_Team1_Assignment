@@ -6,85 +6,31 @@ on:
     types:
       - completed
 
-env:
-  PROJECT_ID: ${{ secrets.GCP_STAGING_PROJECT_ID }}
-  REGION: ${{ secrets.GKE_REGION }}
-  ARTIFACT_REPO: ${{ secrets.ARTIFACT_REPO }}
-  CLUSTER: ${{ secrets.GKE_CLUSTER }}
-
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-        # Authenticate to GCP
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_STAGING_SA_KEY }}
-
-      - name: Set up GCP
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials ${CLUSTER} \
-          --region ${REGION} \
-          --project ${PROJECT_ID}
-
-      - name: Install Kustomize and envsubst
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-          sudo apt-get update && sudo apt-get install -y gettext-base
-
-      - name: Deploy api-gateway to GKE
-        env:
-          API_GATEWAY_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/api-gateway:${{ github.sha }}"
-        run: |
-          cd services/api-gateway.service
-          kustomize build . | envsubst | kubectl apply -f -
-          kubectl rollout status deployment/api-gateway
-
-      - name: Deploy auth-service to GKE
-        env:
-          AUTH_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/auth-service:${{ github.sha }}"
-          POSTGRES_DB: "${{ secrets.POSTGRES_DB }}"
-          POSTGRES_USER: "${{ secrets.POSTGRES_USER }}"
-          POSTGRES_PASSWORD: "${{ secrets.POSTGRES_PASSWORD }}"
-          JWT_SECRET: "${{ secrets.JWT_SECRET }}"
-          DEFAULT_TESTUSER_USERNAME: "${{ secrets.DEFAULT_TESTUSER_USERNAME }}"
-          DEFAULT_TESTUSER_PASSWORD: "${{ secrets.DEFAULT_TESTUSER_PASSWORD }}"
-          DEFAULT_ADMIN_USERNAME: "${{ secrets.DEFAULT_ADMIN_USERNAME }}"
-          DEFAULT_ADMIN_PASSWORD: "${{ secrets.DEFAULT_ADMIN_PASSWORD }}"
-        run: |
-          cd services/auth.service
-          kustomize build . | envsubst | kubectl apply -f -
-          kubectl rollout status deployment/auth-service
-
-      - name: Deploy prompt-manager-service to GKE
-        env:
-          PROMPT_MANAGER_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/prompt-manager-service:${{ github.sha }}"
-          CHATS_POSTGRES_DB: "${{ secrets.CHATS_POSTGRES_DB }}"
-          CHATS_POSTGRES_USER: "${{ secrets.CHATS_POSTGRES_USER }}"
-          CHATS_POSTGRES_PASSWORD: "${{ secrets.CHATS_POSTGRES_PASSWORD }}"
-          PUBSUB_PROJECT_ID: "${{ secrets.PUBSUB_PROJECT_ID }}"
-          PUBSUB_EMULATOR_HOST: "${{ secrets.PUBSUB_EMULATOR_HOST }}"
-          PUBSUB_TOPIC_ID: "${{ secrets.PUBSUB_TOPIC_ID }}"
-          PUBSUB_SUBSCRIPTION_ID: "${{ secrets.PUBSUB_SUBSCRIPTION_ID }}"
-        run: |
-          cd services/prompt-manager.service
-          kustomize build . | envsubst | kubectl apply -f -
-          kubectl rollout status deployment/prompt-manager-service
-
-      - name: Deploy frontend (app) to GKE
-        env:
-          FRONTEND_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/frontend:${{ github.sha }}"
-        run: |
-          cd app
-          kustomize build . | envsubst | kubectl apply -f -
-          kubectl rollout status deployment/frontend
+    uses: ./.github/workflows/reusable-gke-deploy.yml
+    with:
+      environment: staging
+      project_id_secret_name: GCP_STAGING_PROJECT_ID
+      trigger_workflow_name: "Dev Branch CI"
+    secrets:
+      gcp_project_id: ${{ secrets.GCP_STAGING_PROJECT_ID }}
+      gcp_sa_key: ${{ secrets.GCP_STAGING_SA_KEY }}
+      gke_region: ${{ secrets.GKE_REGION }}
+      artifact_repo: ${{ secrets.ARTIFACT_REPO }}
+      gke_cluster: ${{ secrets.GKE_CLUSTER }}
+      postgres_db: ${{ secrets.POSTGRES_DB }}
+      postgres_user: ${{ secrets.POSTGRES_USER }}
+      postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+      jwt_secret: ${{ secrets.JWT_SECRET }}
+      default_testuser_username: ${{ secrets.DEFAULT_TESTUSER_USERNAME }}
+      default_testuser_password: ${{ secrets.DEFAULT_TESTUSER_PASSWORD }}
+      default_admin_username: ${{ secrets.DEFAULT_ADMIN_USERNAME }}
+      default_admin_password: ${{ secrets.DEFAULT_ADMIN_PASSWORD }}
+      chats_postgres_db: ${{ secrets.CHATS_POSTGRES_DB }}
+      chats_postgres_user: ${{ secrets.CHATS_POSTGRES_USER }}
+      chats_postgres_password: ${{ secrets.CHATS_POSTGRES_PASSWORD }}
+      pubsub_project_id: ${{ secrets.PUBSUB_PROJECT_ID }}
+      pubsub_emulator_host: ${{ secrets.PUBSUB_EMULATOR_HOST }}
+      pubsub_topic_id: ${{ secrets.PUBSUB_TOPIC_ID }}
+      pubsub_subscription_id: ${{ secrets.PUBSUB_SUBSCRIPTION_ID }}

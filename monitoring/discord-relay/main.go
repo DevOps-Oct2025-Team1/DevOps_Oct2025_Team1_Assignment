@@ -322,6 +322,12 @@ func getEmoji(severity string, isResolved bool) string {
 }
 
 func postDiscord(url, message string) error {
+	// Check if this is a pushcall.me phone call URL
+	if strings.Contains(url, "pushcall.me") {
+		return makePhoneCall(url)
+	}
+
+	// Handle Discord webhooks
 	var alerts AlertmanagerPayload
 	err := json.Unmarshal([]byte(message), &alerts)
 	if err != nil {
@@ -357,6 +363,24 @@ func postDiscord(url, message string) error {
 		return fmt.Errorf("discord webhook returned %s", resp.Status)
 	}
 
+	return nil
+}
+
+func makePhoneCall(url string) error {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("phone call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("phone call API returned %s", resp.Status)
+	}
+
+	log.Printf("Phone call triggered successfully")
 	return nil
 }
 

@@ -83,7 +83,7 @@ func TestCORSMiddleware(t *testing.T) {
 func TestCORSMiddleware_PreflightRequest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Create test handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -114,7 +114,7 @@ func TestCORSMiddleware_PreflightRequest(t *testing.T) {
 func TestReverseProxy_AuthService(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Create mock auth service
 	mockServer := mockAuthService()
 	defer mockServer.Close()
@@ -160,7 +160,7 @@ func TestReverseProxy_AuthService(t *testing.T) {
 func TestGateway_AdminRoutes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Create mock auth service
 	mockServer := mockAuthService()
 	defer mockServer.Close()
@@ -201,7 +201,7 @@ func TestGateway_AdminRoutes(t *testing.T) {
 func TestGateway_FullFlowWithCORS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Create mock auth service
 	mockServer := mockAuthService()
 	defer mockServer.Close()
@@ -255,7 +255,7 @@ func TestGateway_FullFlowWithCORS(t *testing.T) {
 func TestGateway_InvalidRoute(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Create mock auth service
 	mockServer := mockAuthService()
 	defer mockServer.Close()
@@ -285,7 +285,7 @@ func TestGateway_InvalidRoute(t *testing.T) {
 func TestGateway_EnvironmentConfig(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	// Test that AUTH_SERVICE_URL can be set
 	expectedURL := "http://test-auth-service:8001"
 	os.Setenv("AUTH_SERVICE_URL", expectedURL)
@@ -296,6 +296,3 @@ func TestGateway_EnvironmentConfig(t *testing.T) {
 		t.Errorf("Expected AUTH_SERVICE_URL: %s, got: %s", expectedURL, actualURL)
 	}
 }
-
-
-

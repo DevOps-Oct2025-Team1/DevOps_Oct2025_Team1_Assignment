@@ -221,3 +221,7 @@ services/prompt-manager.service/prompt-manager-service
 services/prompt-manager.service/prompt-manager-service.exe
 coverage.txt
 coverage
+
+terraform/.terraform
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup

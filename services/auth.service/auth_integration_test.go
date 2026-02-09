@@ -235,6 +235,9 @@ func TestValidateHandler_ValidToken(t *testing.T) {
 
 // Test: JWT Validation - Invalid Token
 func TestValidateHandler_InvalidToken(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()

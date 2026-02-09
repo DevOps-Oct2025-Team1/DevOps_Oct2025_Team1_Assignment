@@ -10,8 +10,8 @@ resource "google_container_cluster" "devops_gke" {
   node_locations           = local.gke_zones
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = "pods"
-    services_secondary_range_name = "services"
+    cluster_secondary_range_name  = var.subnet_pods_range
+    services_secondary_range_name = var.subnet_services_range
   }
 
   private_cluster_config {

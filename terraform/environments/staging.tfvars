@@ -1,12 +1,13 @@
 project_id  = "dop-assignment-team1-staging"
+project_number = "746811067854"
 region      = "asia-southeast1"
 environment = "staging"
 
 gke_zones          = ["asia-southeast1-a"]
 gke_node_count     = 1
 gke_min_node_count = 1
-gke_max_node_count = 2
-gke_machine_type   = "e2-medium"
+gke_max_node_count = 3
+gke_machine_type   = "e2-standard-4"
 gke_disk_size      = 30
 
 cluster_min_cpu    = 8
@@ -14,6 +15,8 @@ cluster_max_cpu    = 12
 cluster_min_memory = 32
 cluster_max_memory = 48
 
+subnet_pods_range     = "pods"
+subnet_services_range = "services"
 vpc_cidr      = "10.20.0.0/16"
 pods_cidr     = "10.21.0.0/16"
 services_cidr = "10.22.0.0/20"

@@ -3,6 +3,11 @@ variable "project_id" {
   type        = string
 }
 
+variable "project_number" {
+  description = "The GCP project number"
+  type        = string
+}
+
 variable "region" {
   description = "The GCP region for resources"
   type        = string
@@ -61,6 +66,16 @@ variable "cluster_min_memory" {
 variable "cluster_max_memory" {
   description = "Maximum memory for cluster autoscaling"
   type        = number
+}
+
+variable "subnet_pods_range" {
+  description = "Secondary IP range name for GKE pods"
+  type        = string
+}
+
+variable "subnet_services_range" {
+  description = "Secondary IP range name for GKE services"
+  type        = string
 }
 
 variable "vpc_cidr" {

@@ -7,12 +7,12 @@ resource "google_compute_subnetwork" "devops_subnet_private" {
   ip_cidr_range            = var.vpc_cidr
 
   secondary_ip_range {
-    range_name    = "pods"
+    range_name    = var.subnet_pods_range
     ip_cidr_range = var.pods_cidr
   }
 
   secondary_ip_range {
-    range_name    = "services"
+    range_name    = var.subnet_services_range
     ip_cidr_range = var.services_cidr
   }
 }

@@ -7,4 +7,6 @@ resource "google_storage_bucket" "llm_models" {
   versioning {
     enabled = var.bucket_versioning
   }
+  
+  depends_on = [ google_project_service.devops_api ]
 }

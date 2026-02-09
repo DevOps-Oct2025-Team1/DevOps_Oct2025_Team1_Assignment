@@ -11,21 +11,49 @@ resource "google_service_account" "devops_compute_gke_user" {
   display_name = "DevOps GKE Compute Service Account"
 }
 
+resource "google_service_account" "devops_github_actions" {
+  account_id   = "devops-github-actions"
+  display_name = "DevOps GitHub Actions Service Account"
+}
+
 resource "google_project_iam_member" "devops_gke_user_binding" {
   project = local.project_id
   role    = "roles/container.nodeServiceAccount"
   member  = "serviceAccount:${google_service_account.devops_compute_gke_user.email}"
 }
 
-resource "google_storage_bucket_iam_member" "gke_bucket_access" {
+resource "google_storage_bucket_iam_member" "gke_llm_models_viewer" {
   bucket = google_storage_bucket.llm_models.name
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.devops_compute_gke_user.email}"
+  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/llm-service-account"
 }
 
-resource "google_project_iam_member" "devops_gke_artifact_registry_writer" {
+resource "google_storage_bucket_iam_member" "gke_llm_models_downloader" {
+  bucket = google_storage_bucket.llm_models.name
+  role   = "roles/storage.objectAdmin"
+  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/llm-downloader-service-account"
+}
+
+resource "google_pubsub_topic_iam_member" "gke_prompt_manager" {
+  topic = google_pubsub_topic.prompt_requests.name
+  role  = "roles/pubsub.publisher"
+  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/prompt-manager-service-account"
+}
+
+resource "google_pubsub_subscription_iam_member" "gke_prompt_manager" {
+  subscription = google_pubsub_subscription.prompt_requests.name
+  role         = "roles/pubsub.subscriber"
+  member       = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/prompt-manager-service-account"
+}
+
+resource "google_project_iam_member" "devops_gke_artifact_registry_reader" {
   project = local.project_id
-  role    = "roles/artifactregistry.writer"
+  role    = "roles/artifactregistry.reader"
   member  = "serviceAccount:${google_service_account.devops_compute_gke_user.email}"
 }
 
+resource "google_project_iam_member" "devops_github_actions_artifact_registry_writer" {
+  project = local.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.devops_github_actions.email}"
+}

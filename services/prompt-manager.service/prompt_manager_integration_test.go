@@ -232,7 +232,7 @@ func mockLLMServer(modelName string) *httptest.Server {
 func TestHealthHandler(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -265,7 +265,7 @@ func TestHealthHandler(t *testing.T) {
 func TestModelsHandler(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -305,7 +305,7 @@ func TestModelsHandler(t *testing.T) {
 func TestCreateChatHandler_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -373,7 +373,7 @@ func TestCreateChatHandler_Success(t *testing.T) {
 func TestCreateChatHandler_Unauthorized(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -404,7 +404,7 @@ func TestCreateChatHandler_Unauthorized(t *testing.T) {
 func TestCreateChatHandler_InvalidModel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -436,7 +436,7 @@ func TestCreateChatHandler_InvalidModel(t *testing.T) {
 func TestListChatsHandler_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -487,7 +487,7 @@ func TestListChatsHandler_Success(t *testing.T) {
 func TestListChatsHandler_Pagination(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -542,7 +542,7 @@ func TestListChatsHandler_Pagination(t *testing.T) {
 func TestGetChatHandler_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -593,7 +593,7 @@ func TestGetChatHandler_Success(t *testing.T) {
 func TestGetChatHandler_NotFound(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -619,7 +619,7 @@ func TestGetChatHandler_NotFound(t *testing.T) {
 func TestDeleteChatHandler_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -667,7 +667,7 @@ func TestDeleteChatHandler_Success(t *testing.T) {
 func TestSendMessageHandler_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -757,7 +757,7 @@ func TestSendMessageHandler_Success(t *testing.T) {
 func TestProcessMessage_LLMIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -842,7 +842,7 @@ func TestProcessMessage_LLMIntegration(t *testing.T) {
 func TestDatabaseConnection(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -856,7 +856,7 @@ func TestDatabaseConnection(t *testing.T) {
 func TestPubSubConnection(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -890,7 +890,7 @@ func TestPubSubConnection(t *testing.T) {
 func TestAuthMiddleware_ValidToken(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -925,7 +925,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
-	}`n`tif testing.Short() {`n`t`tt.Skip("skipping integration test")`n`t}
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 
@@ -952,6 +952,3 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusUnauthorized)
 	}
 }
-
-
-

@@ -134,6 +134,64 @@ if (Test-Path $authTestEnvPath) {
 }
 Write-Host ""
 
+# ========================================
+# Monitoring Service Unit Tests (no Docker needed)
+# ========================================
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Running Monitoring Service Unit Tests" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Host "Running Discord Relay Unit Tests..." -ForegroundColor Yellow
+$monitoringPath = Join-Path "monitoring" "discord-relay"
+Push-Location $monitoringPath
+go test -v
+$discordTestResult = $LASTEXITCODE
+Pop-Location
+
+if ($discordTestResult -ne 0) {
+    Write-Host "❌ Discord Relay tests failed" -ForegroundColor Red
+} else {
+    Write-Host "✅ Discord Relay tests passed" -ForegroundColor Green
+}
+Write-Host ""
+
+Write-Host "Running Metrics Exporter Unit Tests..." -ForegroundColor Yellow
+$monitoringPath = Join-Path "monitoring" "metrics-exporter"
+Push-Location $monitoringPath
+go test -v
+$metricsTestResult = $LASTEXITCODE
+Pop-Location
+
+if ($metricsTestResult -ne 0) {
+    Write-Host "❌ Metrics Exporter tests failed" -ForegroundColor Red
+} else {
+    Write-Host "✅ Metrics Exporter tests passed" -ForegroundColor Green
+}
+Write-Host ""
+
+Write-Host "Running GCP Exporter Unit Tests..." -ForegroundColor Yellow
+$monitoringPath = Join-Path "monitoring" "gcp-exporter"
+Push-Location $monitoringPath
+go test -v
+$gcpTestResult = $LASTEXITCODE
+Pop-Location
+
+if ($gcpTestResult -ne 0) {
+    Write-Host "❌ GCP Exporter tests failed" -ForegroundColor Red
+} else {
+    Write-Host "✅ GCP Exporter tests passed" -ForegroundColor Green
+}
+Write-Host ""
+
+# ========================================
+# Service Integration Tests (with Docker)
+# ========================================
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Starting Docker services for integration tests..." -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
 # Run Auth Service Tests
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Running Auth Service Integration Tests" -ForegroundColor Cyan
@@ -194,7 +252,30 @@ Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test Results Summary" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
 
+# Monitoring unit tests
+Write-Host "--- Monitoring Services (Unit Tests) ---" -ForegroundColor Cyan
+if ($discordTestResult -eq 0) {
+    Write-Host "[PASS] Discord Relay Tests: PASSED" -ForegroundColor Green
+} else {
+    Write-Host "[FAIL] Discord Relay Tests: FAILED" -ForegroundColor Red
+}
+
+if ($metricsTestResult -eq 0) {
+    Write-Host "[PASS] Metrics Exporter Tests: PASSED" -ForegroundColor Green
+} else {
+    Write-Host "[FAIL] Metrics Exporter Tests: FAILED" -ForegroundColor Red
+}
+
+if ($gcpTestResult -eq 0) {
+    Write-Host "[PASS] GCP Exporter Tests: PASSED" -ForegroundColor Green
+} else {
+    Write-Host "[FAIL] GCP Exporter Tests: FAILED" -ForegroundColor Red
+}
+
+Write-Host ""
+Write-Host "--- Services (Integration Tests) ---" -ForegroundColor Cyan
 if ($authTestResult -eq 0) {
     Write-Host "[PASS] Auth Service Tests: PASSED" -ForegroundColor Green
 } else {
@@ -225,7 +306,7 @@ if ($response -eq 'y' -or $response -eq 'Y') {
 }
 
 # Exit with appropriate code
-if ($authTestResult -ne 0 -or $gatewayTestResult -ne 0 -or $promptManagerTestResult -ne 0) {
+if ($discordTestResult -ne 0 -or $metricsTestResult -ne 0 -or $gcpTestResult -ne 0 -or $authTestResult -ne 0 -or $gatewayTestResult -ne 0 -or $promptManagerTestResult -ne 0) {
     exit 1
 }
 

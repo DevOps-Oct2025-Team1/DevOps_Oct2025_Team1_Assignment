@@ -60,6 +60,21 @@ jobs:
         run: |
           go test -v -short .
 
+      - name: Run Unit Tests for Discord Relay
+        working-directory: ./monitoring/discord-relay
+        run: |
+          go test -v .
+
+      - name: Run Unit Tests for Metrics Exporter
+        working-directory: ./monitoring/metrics-exporter
+        run: |
+          go test -v .
+
+      - name: Run Unit Tests for GCP Exporter
+        working-directory: ./monitoring/gcp-exporter
+        run: |
+          go test -v .
+
       - name: Notify Unit Tests Result
         if: always()
         uses: sarisia/actions-status-discord@v1

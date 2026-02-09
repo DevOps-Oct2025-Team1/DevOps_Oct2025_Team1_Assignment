@@ -18,9 +18,61 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Notify Production Pipeline Start
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          title: "🚀 Production Release Pipeline Started"
+          description: |
+            <@&1460616737648148594>
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Event:** ${{ github.event_name }}
+            **Run ID:** ${{ github.run_id }}
+          color: 0xff9900
+          username: GitHub Actions
+
       # --- PRODUCTION DEPLOYMENT ---
       - name: Deploy to Production
         id: deploy
         run: |
           echo "Executing Terraform apply..."
           echo "Updating Kubernetes manifests..."
+
+      - name: Notify Production Deployment Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          title: "✅ Production Deployment Complete"
+          description: |
+            <@&1460616737648148594>
+            **Deploy Status:** ${{ steps.deploy.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
+
+      - name: Notify Management
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_MGMT }}
+          status: ${{ job.status }}
+          title: "📊 Production Release Status"
+          description: |
+            **Pipeline Status:** ${{ job.status }}
+            **Deployment Status:** ${{ steps.deploy.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Event:** ${{ github.event_name }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions

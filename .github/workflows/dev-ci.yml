@@ -63,7 +63,7 @@ jobs:
           ADMIN_SERVICE_URL: http://auth:8001
           VITE_API_URL: http://localhost:8000
         run: |
-          docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
+          docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
           
       - name: Wait for integration test services to be ready
         env:
@@ -74,7 +74,7 @@ jobs:
         run: |
           echo "Waiting for PostgreSQL (auth-db) to be ready..."
           for i in {1..30}; do
-            if docker-compose exec -T auth-db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB > /dev/null 2>&1; then
+            if docker compose exec -T auth-db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB > /dev/null 2>&1; then
               echo "Auth DB is ready"
               break
             fi
@@ -84,7 +84,7 @@ jobs:
           
           echo "Waiting for PostgreSQL (chats_db) to be ready..."
           for i in {1..30}; do
-            if docker-compose exec -T chats_db pg_isready -U $CHATS_POSTGRES_USER -d $CHATS_POSTGRES_DB > /dev/null 2>&1; then
+            if docker compose exec -T chats_db pg_isready -U $CHATS_POSTGRES_USER -d $CHATS_POSTGRES_DB > /dev/null 2>&1; then
               echo "Chats DB is ready"
               break
             fi
@@ -107,14 +107,14 @@ jobs:
           DB_NAME: devops_db
           JWT_SECRET: test-secret-key
         run: |
-          go test -v -run 'Integration' .
+          go test -v .
 
       - name: Run Integration Tests for API Gateway Service
         working-directory: ./services/api-gateway.service
         env:
           AUTH_SERVICE_URL: http://localhost:8001
         run: |
-          go test -v -run 'Integration' .
+          go test -v .
 
       - name: Run Integration Tests for Prompt Manager Service
         working-directory: ./services/prompt-manager.service
@@ -131,12 +131,12 @@ jobs:
           GEMMA3_SERVICE_URL: http://localhost:8003
           QWEN3_SERVICE_URL: http://localhost:8004
         run: |
-          go test -v -run 'Integration' .
+          go test -v .
 
       - name: Stop integration test services
         if: always()
         run: |
-          docker-compose -f docker-compose.yml -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
 
       # --- START SERVICES FOR DAST (Using Kubernetes) ---
       - name: Set up Kind cluster

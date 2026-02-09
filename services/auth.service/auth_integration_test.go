@@ -97,6 +97,9 @@ func cleanupTestData(t *testing.T, tc *testContext, username string) {
 
 // Test: User Login - Success
 func TestLoginHandler_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -151,6 +154,9 @@ func TestLoginHandler_Success(t *testing.T) {
 
 // Test: User Login - Invalid Credentials
 func TestLoginHandler_InvalidCredentials(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -178,6 +184,9 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 
 // Test: JWT Validation - Valid Token
 func TestValidateHandler_ValidToken(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -260,6 +269,9 @@ func TestValidateHandler_InvalidToken(t *testing.T) {
 
 // Test: Get All Users - Success (Admin)
 func TestGetUsersHandler_Success_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -290,6 +302,9 @@ func TestGetUsersHandler_Success_Integration(t *testing.T) {
 
 // Test: Create User - Success
 func TestCreateUserHandler_Success_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -336,6 +351,9 @@ func TestCreateUserHandler_Success_Integration(t *testing.T) {
 
 // Test: Create User - Duplicate Username
 func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -380,6 +398,9 @@ func TestCreateUserHandler_DuplicateUsername(t *testing.T) {
 
 // Test: Update User - Success
 func TestEditUserHandler_Success_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -453,6 +474,9 @@ func TestEditUserHandler_Success_Integration(t *testing.T) {
 
 // Test: Delete User - Success
 func TestDeleteUserHandler_Success_Integration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	// Setup
 	tc := setupTestContext(t)
 	defer tc.Close()
@@ -518,6 +542,9 @@ func TestDeleteUserHandler_Success_Integration(t *testing.T) {
 
 // Test: Database Connection
 func TestDatabaseConnection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	tc := setupTestContext(t)
 	defer tc.Close()
 

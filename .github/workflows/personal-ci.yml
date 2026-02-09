@@ -17,10 +17,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go (for Backend/Auth)
-        uses: actions/setup-go@v4
+      - name: Notify CI Start
+        uses: sarisia/actions-status-discord@v1
         with:
-          go-version: '1.25.5'
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
+          status: ${{ job.status }}
+          title: "👨‍💻 Developer CI Started"
+          description: |
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run ID:** ${{ github.run_id }}
+          color: 0x0099ff
+          username: GitHub Actions
+
+      - name: Set up Go (for Backend/Auth)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
 
       - name: Run Linter
         id: linter
@@ -28,9 +43,38 @@ jobs:
           cd services/api-gateway.service && go vet ./... && cd ../..
           cd services/auth.service && go vet ./... && cd ../..
 
-      - name: Run Unit Tests
+      # --- UNIT TESTS ---
+      - name: Run Unit Tests for Auth Service
+        working-directory: ./services/auth.service
+        run: |
+          go test -v -short .
+
+      - name: Run Unit Tests for API Gateway Service
+        working-directory: ./services/api-gateway.service
+        run: |
+          go test -v -short .
+
+      - name: Run Unit Tests for Prompt Manager Service
         id: unit_tests
-        run: echo "Unit tests will run here"
+        working-directory: ./services/prompt-manager.service
+        run: |
+          go test -v -short .
+
+      - name: Notify Unit Tests Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_U }}
+          status: ${{ steps.unit_tests.outcome }}
+          title: "🧪 Unit Tests"
+          description: |
+            **Test Status:** ${{ steps.unit_tests.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
     
       # --- SECURITY PHASE (SAST) ---
       - name: Run Go SAST (GoSec)
@@ -69,3 +113,41 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: trivy
+
+      - name: Notify Security Scans Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
+          status: ${{ job.status }}
+          title: "🔒 Security Scans (SAST & SCA)"
+          description: |
+            **SAST (GoSec):** ${{ steps.sast_scan.outcome }}
+            **SCA (Trivy):** ${{ steps.sca_scan.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
+
+      - name: Notify Quality Gate Complete
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_P }}
+          status: ${{ job.status }}
+          title: "✅ Quality Gate Complete"
+          description: |
+            **Final Status:** ${{ job.status }}
+            **Linter:** ${{ steps.linter.outcome }}
+            **Unit Tests:** ${{ steps.unit_tests.outcome }}
+            **SAST:** ${{ steps.sast_scan.outcome }}
+            **SCA:** ${{ steps.sca_scan.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Event:** ${{ github.event_name }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions

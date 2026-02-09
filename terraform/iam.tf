@@ -25,25 +25,25 @@ resource "google_project_iam_member" "devops_gke_user_binding" {
 resource "google_storage_bucket_iam_member" "gke_llm_models_viewer" {
   bucket = google_storage_bucket.llm_models.name
   role   = "roles/storage.objectViewer"
-  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/llm-service-account"
+  member = "serviceAccount:${var.project_id}.svc.id.goog[default/llm-service-account]"
 }
 
 resource "google_storage_bucket_iam_member" "gke_llm_models_downloader" {
   bucket = google_storage_bucket.llm_models.name
   role   = "roles/storage.objectAdmin"
-  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/llm-downloader-service-account"
+  member = "serviceAccount:${var.project_id}.svc.id.goog[default/llm-downloader-service-account]"
 }
 
 resource "google_pubsub_topic_iam_member" "gke_prompt_manager" {
-  topic = google_pubsub_topic.prompt_requests.name
-  role  = "roles/pubsub.publisher"
-  member = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/prompt-manager-service-account"
+  topic  = google_pubsub_topic.prompt_requests.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${var.project_id}.svc.id.goog[default/prompt-manager-service-account]"
 }
 
 resource "google_pubsub_subscription_iam_member" "gke_prompt_manager" {
   subscription = google_pubsub_subscription.prompt_requests.name
   role         = "roles/pubsub.subscriber"
-  member       = "principal:iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/default/sa/prompt-manager-service-account"
+  member = "serviceAccount:${var.project_id}.svc.id.goog[default/prompt-manager-service-account]"
 }
 
 resource "google_project_iam_member" "devops_gke_artifact_registry_reader" {

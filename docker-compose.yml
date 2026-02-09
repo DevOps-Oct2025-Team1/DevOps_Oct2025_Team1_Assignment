@@ -135,7 +135,7 @@ services:
       - frontend-network
       - auth-network
       - llm-network
-      - backend-network
+      # - backend-network
 
   # Frontend Application
   frontend:

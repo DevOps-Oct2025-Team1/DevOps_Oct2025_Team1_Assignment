@@ -169,6 +169,8 @@ func (mc *MetricsCollector) CollectUserMetrics(ctx context.Context) error {
 	err = mc.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&totalUsers)
 	if err != nil && err != sql.ErrNoRows {
 		log.Printf("Error counting users: %v", err)
+	} else {
+		userRegistrationsTotal.Add(0) // Initialize counter
 	}
 
 	return nil
@@ -206,11 +208,18 @@ func (mc *MetricsCollector) CollectSecurityMetrics(ctx context.Context) error {
 func (mc *MetricsCollector) StartCollecting() {
 	ticker := time.NewTicker(30 * time.Second)
 	go func() {
+		defer ticker.Stop()
 		for range ticker.C {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			mc.CollectAuthMetrics(ctx)
-			mc.CollectUserMetrics(ctx)
-			mc.CollectSecurityMetrics(ctx)
+			if err := mc.CollectAuthMetrics(ctx); err != nil {
+				log.Printf("Error collecting auth metrics: %v", err)
+			}
+			if err := mc.CollectUserMetrics(ctx); err != nil {
+				log.Printf("Error collecting user metrics: %v", err)
+			}
+			if err := mc.CollectSecurityMetrics(ctx); err != nil {
+				log.Printf("Error collecting security metrics: %v", err)
+			}
 
 			// Update uptime
 			serviceUptime.Set(time.Since(startTime).Seconds())
@@ -221,10 +230,12 @@ func (mc *MetricsCollector) StartCollecting() {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status": "healthy",
 		"uptime": time.Since(startTime).String(),
-	})
+	}); err != nil {
+		log.Printf("Error encoding health response: %v", err)
+	}
 }
 
 func getEnv(key, defaultValue string) string {
@@ -246,23 +257,35 @@ func main() {
 		log.Println("Database metrics collector started")
 	}
 
-	// Simulate some metrics for testing
-	go func() {
-		ticker := time.NewTicker(5 * time.Second)
-		for range ticker.C {
-			// Simulate request metrics
-			httpRequestsTotal.WithLabelValues("api-gateway", "GET", "200").Inc()
-			httpRequestsTotal.WithLabelValues("auth-service", "POST", "200").Inc()
+	// Optional metric simulation (disabled by default)
+	// Set ENABLE_METRIC_SIMULATION=true to enable fake metrics for testing
+	if getEnv("ENABLE_METRIC_SIMULATION", "") == "true" {
+		log.Println("Metric simulation enabled via ENABLE_METRIC_SIMULATION")
+		go func() {
+			ticker := time.NewTicker(5 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				// Simulate request metrics
+				httpRequestsTotal.WithLabelValues("api-gateway", "GET", "200").Inc()
+				httpRequestsTotal.WithLabelValues("auth-service", "POST", "200").Inc()
 
-			// Simulate queue depth (mock)
-			messagesInQueue.Set(float64(time.Now().Unix() % 100))
-		}
-	}()
+				// Simulate queue depth (mock)
+				messagesInQueue.Set(float64(time.Now().Unix() % 100))
+			}
+		}()
+	}
 
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/health", healthHandler)
 
 	port := getEnv("PORT", "9090")
 	log.Printf("Metrics exporter listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+
+	server := &http.Server{
+		Addr:         ":" + port,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }

@@ -22,20 +22,43 @@ type Alert struct {
 }
 
 type DiscordMessage struct {
-	Content string `json:"content"`
+	Content  string         `json:"content,omitempty"`
+	Embeds   []DiscordEmbed `json:"embeds"`
+	Username string         `json:"username,omitempty"`
+}
+
+type DiscordEmbed struct {
+	Title       string              `json:"title"`
+	Description string              `json:"description,omitempty"`
+	Color       int                 `json:"color"`
+	Fields      []DiscordEmbedField `json:"fields,omitempty"`
+	Footer      *DiscordEmbedFooter `json:"footer,omitempty"`
+	Timestamp   string              `json:"timestamp,omitempty"`
+}
+
+type DiscordEmbedField struct {
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Inline bool   `json:"inline"`
+}
+
+type DiscordEmbedFooter struct {
+	Text string `json:"text"`
 }
 
 func main() {
 	port := getEnv("PORT", "8080")
-	devQa := getEnv("DISCORD_WEBHOOK_URLS", "")
-	main := getEnv("DISCORD_MAIN_WEBHOOK_URLS", "")
+	critical := getEnv("DISCORD_CRITICAL_URLS", "")
+	warning := getEnv("DISCORD_WARNING_URLS", "")
+	main := getEnv("DISCORD_MAIN_URLS", "")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("/webhook/dev-qa", makeHandler(devQa))
+	mux.HandleFunc("/webhook/critical", makeHandler(critical))
+	mux.HandleFunc("/webhook/warning", makeHandler(warning))
 	mux.HandleFunc("/webhook/main", makeHandler(main))
 
 	server := &http.Server{
@@ -67,14 +90,19 @@ func makeHandler(urlsEnv string) http.HandlerFunc {
 			return
 		}
 
-		message := buildMessage(payload)
-		if message == "" {
-			http.Error(w, "empty message", http.StatusBadRequest)
+		if len(payload.Alerts) == 0 {
+			http.Error(w, "no alerts in payload", http.StatusBadRequest)
+			return
+		}
+
+		alertJSON, err := json.Marshal(payload)
+		if err != nil {
+			http.Error(w, "marshal alerts: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		for _, url := range urls {
-			if err := postDiscord(url, message); err != nil {
+			if err := postDiscord(url, string(alertJSON)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadGateway)
 				return
 			}
@@ -84,32 +112,134 @@ func makeHandler(urlsEnv string) http.HandlerFunc {
 	}
 }
 
-func buildMessage(payload AlertmanagerPayload) string {
-	status := payload.Status
-	if status == "" {
-		status = "firing"
+func buildEmbeds(payload AlertmanagerPayload) []DiscordEmbed {
+	var embeds []DiscordEmbed
+	status := firstNonEmpty(payload.Status, "firing")
+	isResolved := status == "resolved"
+
+	maxAlerts := 10
+	alertCount := len(payload.Alerts)
+	if alertCount > maxAlerts {
+		alertCount = maxAlerts
 	}
 
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Alertmanager %s (%d alerts)\n", status, len(payload.Alerts)))
-
-	maxAlerts := 15
-	for i, alert := range payload.Alerts {
-		if i >= maxAlerts {
-			sb.WriteString(fmt.Sprintf("- ...and %d more\n", len(payload.Alerts)-maxAlerts))
-			break
-		}
+	for i := 0; i < alertCount; i++ {
+		alert := payload.Alerts[i]
 		name := firstNonEmpty(alert.Labels["alertname"], "unknown")
-		severity := firstNonEmpty(alert.Labels["severity"], "unknown")
-		summary := firstNonEmpty(alert.Annotations["summary"], alert.Annotations["description"], name)
-		sb.WriteString(fmt.Sprintf("- %s (%s): %s\n", name, severity, summary))
+		severity := firstNonEmpty(alert.Labels["severity"], "warning")
+		summary := firstNonEmpty(alert.Annotations["summary"], alert.Annotations["description"])
+		description := firstNonEmpty(alert.Annotations["description"])
+		instance := firstNonEmpty(alert.Labels["instance"], alert.Labels["pod"], alert.Labels["service"])
+		category := firstNonEmpty(alert.Labels["category"], "general")
+
+		color := severityToColor(severity, isResolved)
+		emoji := getEmoji(severity)
+
+		embed := DiscordEmbed{
+			Title:     fmt.Sprintf("%s %s [%s]", emoji, name, strings.ToUpper(severity)),
+			Color:     color,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+
+		if summary != "" {
+			embed.Description = summary
+		}
+
+		var fields []DiscordEmbedField
+
+		if category != "" && category != "general" {
+			fields = append(fields, DiscordEmbedField{
+				Name:   "Category",
+				Value:  strings.Title(category),
+				Inline: true,
+			})
+		}
+
+		if severity != "" {
+			fields = append(fields, DiscordEmbedField{
+				Name:   "Severity",
+				Value:  strings.ToUpper(severity),
+				Inline: true,
+			})
+		}
+
+		if description != "" && description != summary {
+			fields = append(fields, DiscordEmbedField{
+				Name:   "Details",
+				Value:  description,
+				Inline: false,
+			})
+		}
+
+		if instance != "" {
+			fields = append(fields, DiscordEmbedField{
+				Name:   "Instance",
+				Value:  instance,
+				Inline: true,
+			})
+		}
+
+		embed.Fields = fields
+		embed.Footer = &DiscordEmbedFooter{
+			Text: "Alertmanager - Monitoring System",
+		}
+
+		embeds = append(embeds, embed)
 	}
 
-	return truncate(sb.String(), 1900)
+	if len(payload.Alerts) > maxAlerts {
+		embed := DiscordEmbed{
+			Title:       "⚠️ More Alerts",
+			Color:       0xFFA500,
+			Description: fmt.Sprintf("Showing %d of %d alerts. %d more not displayed.", maxAlerts, len(payload.Alerts), len(payload.Alerts)-maxAlerts),
+		}
+		embeds = append(embeds, embed)
+	}
+
+	return embeds
+}
+
+func severityToColor(severity string, isResolved bool) int {
+	if isResolved {
+		return 0x27AE60
+	}
+	switch strings.ToLower(severity) {
+	case "critical":
+		return 0xD32F2F
+	case "warning":
+		return 0xFFA500
+	case "info":
+		return 0x0099FF
+	default:
+		return 0x808080
+	}
+}
+
+func getEmoji(severity string) string {
+	switch strings.ToLower(severity) {
+	case "critical":
+		return "🔴"
+	case "warning":
+		return "🟡"
+	case "info":
+		return "ℹ️"
+	default:
+		return "⚪"
+	}
 }
 
 func postDiscord(url, message string) error {
-	payload := DiscordMessage{Content: message}
+	var alerts AlertmanagerPayload
+	err := json.Unmarshal([]byte(message), &alerts)
+	if err != nil {
+		return fmt.Errorf("unmarshal alerts: %w", err)
+	}
+
+	embeds := buildEmbeds(alerts)
+	payload := DiscordMessage{
+		Embeds:   embeds,
+		Username: "Monitoring Alert",
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshal discord message: %w", err)
@@ -121,7 +251,10 @@ func postDiscord(url, message string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("post to discord: %w", err)
 	}

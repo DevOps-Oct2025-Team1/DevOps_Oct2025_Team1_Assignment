@@ -8,17 +8,21 @@ route:
   repeat_interval: 12h
   receiver: 'default-receiver'
   routes:
+    # Heartbeat alerts -> both QA + Developer channels every 5m (info)
     - match:
-        severity: critical
-      receiver: 'oneuptime-critical'
-      continue: true
-    - match:
-        severity: critical
-      receiver: 'discord-developer-qa'
+        alertname: SystemHeartbeat
+      receiver: 'default-receiver'
+      repeat_interval: 5m
       continue: false
+    # Critical alerts -> Developer + QA
+    - match:
+        severity: critical
+      receiver: 'discord-critical'
+      continue: false
+    # Warning alerts -> QA only
     - match:
         severity: warning
-      receiver: 'discord-developer-qa'
+      receiver: 'discord-warning'
       continue: false
 
 receivers:
@@ -27,12 +31,12 @@ receivers:
       - url: 'http://discord-relay:8080/webhook/main'
         send_resolved: true
   
-  - name: 'oneuptime-critical'
+  - name: 'discord-critical'
     webhook_configs:
-      - url: 'https://oneuptime.com/heartbeat/695f4e60-04c8-11f1-b9f0-6b1be00062f9'
+      - url: 'http://discord-relay:8080/webhook/critical'
         send_resolved: true
   
-  - name: 'discord-developer-qa'
+  - name: 'discord-warning'
     webhook_configs:
-      - url: 'http://discord-relay:8080/webhook/dev-qa'
+      - url: 'http://discord-relay:8080/webhook/warning'
         send_resolved: true

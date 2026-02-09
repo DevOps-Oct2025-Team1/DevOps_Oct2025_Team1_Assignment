@@ -282,7 +282,7 @@ func main() {
 	http.HandleFunc("/test/auth-failures", func(w http.ResponseWriter, r *http.Request) {
 		authFailures.WithLabelValues("invalid_credentials").Set(100)
 		log.Println("TEST: Set auth_failures to 100 (triggers HighAuthFailureRate)")
-		fmt.Fprintf(w, "✅ Set auth_failures to 100. Alert should fire in ~2 minutes.\n")
+		fmt.Fprintf(w, "✅ Set auth_failures to 100. Alert should fire in ~1 minutes.\n")
 	})
 
 	http.HandleFunc("/test/reset", func(w http.ResponseWriter, r *http.Request) {

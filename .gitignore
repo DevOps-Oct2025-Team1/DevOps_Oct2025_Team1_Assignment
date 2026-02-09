@@ -199,6 +199,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Kustomize build output
+kustomize-output.yaml
+
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
@@ -218,3 +221,5 @@ services/prompt-manager.service/prompt-manager-service
 services/prompt-manager.service/prompt-manager-service.exe
 coverage.txt
 coverage
+
+gcp-monitoring-key.json

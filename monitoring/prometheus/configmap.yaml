@@ -7,7 +7,7 @@ data:
   prometheus.yml: |
     global:
       scrape_interval: 15s
-      evaluation_interval: 15s
+      evaluation_interval: 10s
       external_labels:
         cluster: 'dev-cluster'
         environment: 'production'
@@ -193,7 +193,7 @@ data:
         rules:
           - alert: HighAuthFailureRate
             expr: sum(auth_failures) > 50
-            for: 2m
+            for: 1m
             labels:
               severity: critical
               category: security
@@ -271,11 +271,11 @@ data:
         interval: 30s
         rules:
           - alert: SystemHeartbeat
-            expr: label_replace(label_replace(avg(node_cpu_usage_percent), "metric", "node_cpu_avg", "", ""), "unit", "percent", "", "") or label_replace(label_replace(avg(node_memory_usage_percent), "metric", "node_mem_avg", "", ""), "unit", "percent", "", "") or label_replace(label_replace(sum(api_requests_per_second), "metric", "api_rps", "", ""), "unit", "rps", "", "") or label_replace(label_replace(avg(api_error_rate) * 100, "metric", "api_error_rate", "", ""), "unit", "percent", "", "") or label_replace(label_replace(sum(prompts_blocked_recent), "metric", "prompts_blocked", "", ""), "unit", "count", "", "") or label_replace(label_replace(sum(nodes_ready_total), "metric", "nodes_ready", "", ""), "unit", "count", "", "") or label_replace(label_replace(sum(pods_running_total), "metric", "pods_running", "", ""), "unit", "count", "", "")
-            for: 1m
+            expr: vector(1)
+            for: 30s
             labels:
               severity: info
               category: heartbeat
             annotations:
-              summary: "{{ $labels.metric }}: {{ $value }} {{ $labels.unit }}"
-              description: "System is healthy - {{ $labels.metric }} = {{ $value }} {{ $labels.unit }}"
+              summary: "System Health Status"
+              description: "System is running and healthy. Check Grafana dashboard for detailed metrics."

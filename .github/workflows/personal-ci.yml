@@ -47,18 +47,18 @@ jobs:
       - name: Run Unit Tests for Auth Service
         working-directory: ./services/auth.service
         run: |
-          go test -v -run 'Test(?!.*Integration)' .
+          go test -v -short .
 
       - name: Run Unit Tests for API Gateway Service
         working-directory: ./services/api-gateway.service
         run: |
-          go test -v -run 'Test(?!.*Integration)' .
+          go test -v -short .
 
       - name: Run Unit Tests for Prompt Manager Service
         id: unit_tests
         working-directory: ./services/prompt-manager.service
         run: |
-          go test -v -run 'Test(?!.*Integration)' .
+          go test -v -short .
 
       - name: Notify Unit Tests Result
         if: always()

@@ -72,21 +72,76 @@ jobs:
       - name: Set up GCP
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials ${CLUSTER} \
-          --region ${REGION} \
-          --project ${PROJECT_ID}
-
       - name: Install Kustomize and envsubst
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
           sudo apt-get update && sudo apt-get install -y gettext-base
 
+      # terraform deployment
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          terraform_wrapper: false
+
+      - name: Create Terraform State Bucket
+        run: |
+          BUCKET_NAME="${{ secrets.gcp_project_id }}-terraform-state"
+          if ! gsutil ls -b "gs://${BUCKET_NAME}" > /dev/null 2>&1; then
+            echo "Creating Terraform state bucket: gs://${BUCKET_NAME}"
+            gsutil mb -l ${{ secrets.gke_region }} "gs://${BUCKET_NAME}"
+            gsutil versioning set on "gs://${BUCKET_NAME}"
+            echo "Bucket created successfully"
+          else
+            echo "Terraform state bucket already exists: gs://${BUCKET_NAME}"
+          fi
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.gcp_project_id }}-terraform-state" \
+            -backend-config="prefix=terraform/state/${{ inputs.environment }}" \
+            -backend-config="credentials=${{ secrets.gcp_sa_key }}"
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: |
+          terraform plan \
+            -var-file="environments/${{ inputs.environment }}.tfvars" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve tfplan
+
+      - name: Export Terraform Outputs
+        working-directory: ./terraform
+        id: terraform_outputs
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint)" >> $GITHUB_OUTPUT
+          echo "artifact_repository_id=$(terraform output -raw artifact_repository_id)" >> $GITHUB_OUTPUT
+          echo "region=$(terraform output -raw region)" >> $GITHUB_OUTPUT
+          echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
+          
+          # Set environment variables for subsequent steps
+          echo "CLUSTER=$(terraform output -raw cluster_name)" >> $GITHUB_ENV
+          echo "REGION=$(terraform output -raw region)" >> $GITHUB_ENV
+
+      - name: Get GKE credentials
+        run: |
+          echo "Getting credentials for cluster: ${{ steps.terraform_outputs.outputs.cluster_name }}"
+          gcloud container clusters get-credentials ${{ steps.terraform_outputs.outputs.cluster_name }} \
+            --region ${{ steps.terraform_outputs.outputs.region }} \
+            --project ${{ steps.terraform_outputs.outputs.project_id }}
+
+      # K8 deployment
       - name: Deploy api-gateway to GKE
         env:
-          API_GATEWAY_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/api-gateway:${{ github.sha }}"
+          API_GATEWAY_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/api-gateway:${{ github.sha }}"
         run: |
           cd services/api-gateway.service
           kustomize build . | envsubst | kubectl apply -f -
@@ -94,7 +149,7 @@ jobs:
 
       - name: Deploy auth-service to GKE
         env:
-          AUTH_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/auth-service:${{ github.sha }}"
+          AUTH_SERVICE_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/auth-service:${{ github.sha }}"
           POSTGRES_DB: "${{ secrets.postgres_db }}"
           POSTGRES_USER: "${{ secrets.postgres_user }}"
           POSTGRES_PASSWORD: "${{ secrets.postgres_password }}"
@@ -110,7 +165,7 @@ jobs:
 
       - name: Deploy prompt-manager-service to GKE
         env:
-          PROMPT_MANAGER_SERVICE_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/prompt-manager-service:${{ github.sha }}"
+          PROMPT_MANAGER_SERVICE_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/prompt-manager-service:${{ github.sha }}"
           CHATS_POSTGRES_DB: "${{ secrets.chats_postgres_db }}"
           CHATS_POSTGRES_USER: "${{ secrets.chats_postgres_user }}"
           CHATS_POSTGRES_PASSWORD: "${{ secrets.chats_postgres_password }}"
@@ -125,7 +180,7 @@ jobs:
 
       - name: Deploy frontend (app) to GKE
         env:
-          FRONTEND_IMAGE: "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/frontend:${{ github.sha }}"
+          FRONTEND_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/frontend:${{ github.sha }}"
         run: |
           cd app
           kustomize build . | envsubst | kubectl apply -f -

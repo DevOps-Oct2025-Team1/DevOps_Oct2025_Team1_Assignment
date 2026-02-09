@@ -149,7 +149,9 @@ func queryPrometheus(query string) (float64, error) {
 
 	valueStr := fmt.Sprintf("%v", result.Data.Result[0].Value[1])
 	var value float64
-	fmt.Sscanf(valueStr, "%f", &value)
+	if _, err := fmt.Sscanf(valueStr, "%f", &value); err != nil {
+		return 0, fmt.Errorf("failed to parse value: %w", err)
+	}
 	return value, nil
 }
 

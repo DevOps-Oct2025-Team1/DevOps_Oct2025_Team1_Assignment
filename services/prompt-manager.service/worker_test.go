@@ -197,7 +197,12 @@ func TestUnitCallLLMService_InvalidResponse(t *testing.T) {
 
 // TestUnitCallLLMService_ConnectionError tests LLM service connection error
 func TestUnitCallLLMService_ConnectionError(t *testing.T) {
-	content, tokens, err := callLLMService("http://invalid-host:9999", "User: Hello\nAssistant: ")
+	// Create a server and immediately close it to get a port that refuses connections
+	closedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedServerURL := closedServer.URL
+	closedServer.Close()
+
+	content, tokens, err := callLLMService(closedServerURL, "User: Hello\nAssistant: ")
 	if err == nil {
 		t.Fatalf("Expected an error, got nil")
 	}

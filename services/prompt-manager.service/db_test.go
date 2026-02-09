@@ -20,6 +20,9 @@ func setupChatsTestDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	db = mockDB
 
 	cleanup := func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Unmet sqlmock expectations: %v", err)
+		}
 		mockDB.Close()
 		db = originalDB
 	}

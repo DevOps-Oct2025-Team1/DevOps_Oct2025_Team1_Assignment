@@ -24,6 +24,9 @@ func setupHandlersTestDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	db = mockDB
 
 	cleanup := func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("Unmet sqlmock expectations: %v", err)
+		}
 		mockDB.Close()
 		db = originalDB
 	}
@@ -479,10 +482,6 @@ func TestUnitGetChatHandler_ChatError(t *testing.T) {
 	mock.ExpectQuery(`SELECT id, user_id, title, model, created_at, updated_at FROM chats WHERE id = \$1 AND user_id = \$2`).
 		WithArgs("123", 1).
 		WillReturnError(sql.ErrConnDone)
-	mock.ExpectQuery(`SELECT id, chat_id, role, content, status, error_message, tokens_used, created_at FROM messages WHERE chat_id = \$1 ORDER BY created_at ASC`).
-		WithArgs("123").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "chat_id", "role", "content", "status", "error_message", "tokens_used", "created_at"}).
-			AddRow("1", "123", RoleUser, "Hello", StatusCompleted, nil, nil, time.Now()))
 
 	req := createAuthenticatedRequest(http.MethodGet, "/chats/123", nil, 1, "testuser")
 	rr := httptest.NewRecorder()
@@ -519,8 +518,8 @@ func TestUnitGetChatHandler_MessagesError(t *testing.T) {
 
 // DeleteChat Handler Tests
 
-// TestUnitUnitDeleteChatHandler_Success tests deleting a chat successfully
-func TestUnitUnitDeleteChatHandler_Success(t *testing.T) {
+// TestUnitDeleteChatHandler_Success tests deleting a chat successfully
+func TestUnitDeleteChatHandler_Success(t *testing.T) {
 	mock, cleanup := setupHandlersTestDB(t)
 	defer cleanup()
 
@@ -767,8 +766,8 @@ func TestUnitSendMessageHandler_ChatError(t *testing.T) {
 	}
 }
 
-// TestUnitSendMessageHandler_MessagesError tests sending a message where the messages have a database error
-func TestUnitSendMessageHandler_MessagesError(t *testing.T) {
+// TestUnitSendMessageHandler_CreateMessageError tests sending a message where CreateMessage fails
+func TestUnitSendMessageHandler_CreateMessageError(t *testing.T) {
 	mock, cleanup := setupHandlersTestDB(t)
 	defer cleanup()
 
@@ -776,8 +775,8 @@ func TestUnitSendMessageHandler_MessagesError(t *testing.T) {
 		WithArgs("123", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "title", "model", "created_at", "updated_at"}).
 			AddRow("123", 1, "Test Chat", "gemma3", time.Now(), time.Now()))
-	mock.ExpectQuery(`SELECT id, chat_id, role, content, status, error_message, tokens_used, created_at FROM messages WHERE chat_id = \$1 ORDER BY created_at ASC`).
-		WithArgs("123").
+	mock.ExpectQuery(`INSERT INTO messages \(chat_id, role, content, status\) VALUES \(\$1, \$2, \$3, \$4\) RETURNING id, created_at`).
+		WithArgs("123", RoleUser, "Hello there", StatusCompleted).
 		WillReturnError(sql.ErrConnDone)
 
 	body := SendMessageRequest{Content: "Hello there"}

@@ -309,9 +309,13 @@ func TestUnitAuthMiddleware_InvalidFormat(t *testing.T) {
 
 // TestUnitAuthMiddleware_AuthServiceUnavailable tests authMiddleware when auth service is unavailable
 func TestUnitAuthMiddleware_AuthServiceUnavailable(t *testing.T) {
-	// Set auth service URL to invalid address
+	// Create a server and immediately close it to get a port that refuses connections
+	closedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedServerURL := closedServer.URL
+	closedServer.Close()
+
 	originalURL := authServiceURL
-	authServiceURL = "http://invalid-host:9999"
+	authServiceURL = closedServerURL
 	defer func() { authServiceURL = originalURL }()
 
 	handler := authMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -329,8 +333,8 @@ func TestUnitAuthMiddleware_AuthServiceUnavailable(t *testing.T) {
 	}
 }
 
-// TestUnitUnitAuthMiddleware_InvalidToken tests authMiddleware when auth service returns invalid token
-func TestUnitUnitAuthMiddleware_InvalidToken(t *testing.T) {
+// TestUnitAuthMiddleware_InvalidToken tests authMiddleware when auth service returns invalid token
+func TestUnitAuthMiddleware_InvalidToken(t *testing.T) {
 	// Create a mock auth server that returns invalid token
 	mockAuthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

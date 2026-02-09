@@ -1,28 +1,11 @@
-output "cluster_name" {
-  description = "The name of the GKE cluster"
-  value       = google_container_cluster.primary.name
-}
-
-output "cluster_endpoint" {
-  description = "The endpoint of the GKE cluster"
-  value       = google_container_cluster.primary.endpoint
-  sensitive   = true
-}
-
-output "cluster_ca_certificate" {
-  description = "The CA certificate of the GKE cluster"
-  value       = google_container_cluster.primary.master_auth[0].cluster_ca_certificate
-  sensitive   = true
-}
-
 output "vpc_id" {
   description = "The ID of the VPC network"
-  value       = google_compute_network.vpc.id
+  value       = google_compute_network.devops_vpc.id
 }
 
 output "subnet_id" {
   description = "The ID of the subnet"
-  value       = google_compute_subnetwork.subnet.id
+  value       = google_compute_subnetwork.devops_subnet_private.id
 }
 
 output "auth_database_instance" {
@@ -58,6 +41,28 @@ output "pubsub_topic" {
 output "pubsub_subscription" {
   description = "The name of the Pub/Sub subscription"
   value       = google_pubsub_subscription.prompt_requests.name
+}
+
+output "cluster_name" {
+  description = "The name of the GKE cluster"
+  value       = google_container_cluster.devops_gke.name
+}
+
+output "cluster_endpoint" {
+  description = "The endpoint of the GKE cluster"
+  value       = google_container_cluster.devops_gke.endpoint
+  sensitive   = true
+}
+
+output "cluster_ca_certificate" {
+  description = "The CA certificate of the GKE cluster"
+  value       = google_container_cluster.devops_gke.master_auth[0].cluster_ca_certificate
+  sensitive   = true
+}
+
+output "get_credentials_command" {
+  description = "Command to get cluster credentials"
+  value       = "gcloud container clusters get-credentials ${google_container_cluster.devops_gke.name} --region ${var.region} --project ${local.project_id}"
 }
 
 output "region" {

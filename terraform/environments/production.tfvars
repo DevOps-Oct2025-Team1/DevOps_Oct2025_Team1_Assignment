@@ -2,7 +2,7 @@ project_id  = "dop-assignment-team1-production"
 region      = "asia-southeast1"
 environment = "production"
 
-gke_zones          = ["asia-southeast1-a", "asia-southeast1-b", "asia-southeast1-c"]
+gke_zones          = ["asia-southeast1-a"]
 gke_node_count     = 3
 gke_min_node_count = 3
 gke_max_node_count = 10

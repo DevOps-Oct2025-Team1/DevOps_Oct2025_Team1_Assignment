@@ -8,6 +8,10 @@ locals {
     "container.googleapis.com",
     "iam.googleapis.com",
     "serviceusage.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "sqladmin.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "pubsub.googleapis.com",
   ]
 
   terraform_admin_roles = [

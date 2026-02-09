@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/google"
       version = "7.16.0"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "7.16.0"
+    }
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "2.24.0"
@@ -21,12 +25,9 @@ provider "google" {
   region  = local.region
 }
 
-provider "kubernetes" {
-  host  = "https://${google_container_cluster.devops_gke.endpoint}"
-  token = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(
-    google_container_cluster.devops_gke.master_auth[0].cluster_ca_certificate
-  )
+provider "google-beta" {
+  project = local.project_id
+  region  = local.region
 }
 
 data "google_client_config" "default" {}

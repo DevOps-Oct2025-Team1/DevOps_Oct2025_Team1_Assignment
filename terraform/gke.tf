@@ -5,7 +5,7 @@ resource "google_container_cluster" "devops_gke" {
   subnetwork               = google_compute_subnetwork.devops_subnet_private.id
   networking_mode          = "VPC_NATIVE"
   deletion_protection      = var.enable_deletion_protection
-  remove_default_node_pool = true
+  remove_default_node_pool = false
   initial_node_count       = var.gke_node_count
   node_locations           = local.gke_zones
 
@@ -83,17 +83,4 @@ resource "google_container_node_pool" "devops_node_pool" {
     max_surge       = 1
     max_unavailable = 0
   }
-}
-
-output "cluster_name" {
-  value = google_container_cluster.devops_gke.name
-}
-
-output "cluster_endpoint" {
-  value     = google_container_cluster.devops_gke.endpoint
-  sensitive = true
-}
-
-output "get_credentials_command" {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.devops_gke.name} --region ${local.region} --project ${local.project_id}"
 }

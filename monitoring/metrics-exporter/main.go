@@ -278,6 +278,33 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/health", healthHandler)
 
+	// Test endpoints for triggering alerts
+	http.HandleFunc("/test/auth-failures", func(w http.ResponseWriter, r *http.Request) {
+		authFailures.WithLabelValues("invalid_credentials").Set(100)
+		log.Println("TEST: Set auth_failures to 100 (triggers HighAuthFailureRate)")
+		fmt.Fprintf(w, "✅ Set auth_failures to 100. Alert should fire in ~1 minutes.\n")
+	})
+
+	http.HandleFunc("/test/reset", func(w http.ResponseWriter, r *http.Request) {
+		if collector != nil {
+			// Force re-collection from database to get real value
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := collector.CollectAuthMetrics(ctx); err != nil {
+				log.Printf("TEST: Error collecting actual metrics: %v", err)
+				fmt.Fprintf(w, "⚠️  Error fetching database value, reset to 0.\n")
+				authFailures.WithLabelValues("invalid_credentials").Set(0)
+			} else {
+				log.Println("TEST: Reset auth_failures to actual database value")
+				fmt.Fprintf(w, "✅ Reset to actual database value.\n")
+			}
+			cancel()
+		} else {
+			authFailures.WithLabelValues("invalid_credentials").Set(0)
+			log.Println("TEST: Reset auth_failures to 0 (no database connection)")
+			fmt.Fprintf(w, "✅ Reset to 0 (no database connection).\n")
+		}
+	})
+
 	port := getEnv("PORT", "9090")
 	log.Printf("Metrics exporter listening on :%s", port)
 

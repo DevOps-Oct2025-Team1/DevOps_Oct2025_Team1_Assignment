@@ -81,6 +81,11 @@ func initPubSub() error {
 }
 
 func publishMessage(msg PubSubMessage) error {
+	if topic == nil {
+		log.Printf("Pub/Sub topic is not initialized, skipping message publish")
+		return nil
+	}
+
 	ctx := context.Background()
 
 	data, err := json.Marshal(msg)

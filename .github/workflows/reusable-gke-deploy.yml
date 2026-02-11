@@ -7,14 +7,6 @@ on:
         required: true
         type: string
         description: 'Environment name (staging/production)'
-      project_id_secret_name:
-        required: true
-        type: string
-        description: 'Name of the secret containing GCP Project ID'
-      trigger_workflow_name:
-        required: true
-        type: string
-        description: 'Name of the workflow that triggers this deployment'
     secrets:
       gcp_project_id:
         required: true

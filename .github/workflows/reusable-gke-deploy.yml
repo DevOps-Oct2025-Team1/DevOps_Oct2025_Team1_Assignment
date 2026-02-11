@@ -97,13 +97,17 @@ jobs:
             echo "Terraform state bucket already exists: gs://${BUCKET_NAME}"
           fi
 
+      - name: Setup GCP Credentials for Terraform
+        run: |
+          echo '${{ secrets.gcp_sa_key }}' > /tmp/gcp-key.json
+
       - name: Terraform Init
         working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=${{ secrets.gcp_project_id }}-terraform-state" \
             -backend-config="prefix=terraform/state/${{ inputs.environment }}" \
-            -backend-config="credentials=${{ secrets.gcp_sa_key }}"
+            -backend-config="credentials=/tmp/gcp-key.json"
 
       - name: Terraform Plan
         working-directory: ./terraform

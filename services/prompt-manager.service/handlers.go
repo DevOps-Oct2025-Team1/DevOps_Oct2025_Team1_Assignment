@@ -238,7 +238,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Extract chat ID
 	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 3 {
+	if len(pathParts) != 4 {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}

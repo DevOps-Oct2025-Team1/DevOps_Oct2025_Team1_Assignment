@@ -18,6 +18,11 @@ terraform {
       version = "2.5.2"
     }
   }
+
+  backend "gcs" {
+    # Bucket name provided via -backend-config in CI/CD
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {

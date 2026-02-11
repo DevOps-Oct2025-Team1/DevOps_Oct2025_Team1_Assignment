@@ -43,7 +43,7 @@ resource "google_pubsub_topic_iam_member" "gke_prompt_manager" {
 resource "google_pubsub_subscription_iam_member" "gke_prompt_manager" {
   subscription = google_pubsub_subscription.prompt_requests.name
   role         = "roles/pubsub.subscriber"
-  member = "serviceAccount:${var.project_id}.svc.id.goog[default/prompt-manager-service-account]"
+  member       = "serviceAccount:${var.project_id}.svc.id.goog[default/prompt-manager-service-account]"
 }
 
 resource "google_project_iam_member" "devops_gke_artifact_registry_reader" {
@@ -55,5 +55,30 @@ resource "google_project_iam_member" "devops_gke_artifact_registry_reader" {
 resource "google_project_iam_member" "devops_github_actions_artifact_registry_writer" {
   project = local.project_id
   role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.devops_github_actions.email}"
+}
+
+# IAM permissions for Terraform state bucket access
+resource "google_storage_bucket_iam_member" "github_actions_terraform_state_admin" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.devops_github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_compute_admin" {
+  project = local.project_id
+  role    = "roles/compute.admin"
+  member  = "serviceAccount:${google_service_account.devops_github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_container_admin" {
+  project = local.project_id
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${google_service_account.devops_github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_iam_admin" {
+  project = local.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
   member  = "serviceAccount:${google_service_account.devops_github_actions.email}"
 }

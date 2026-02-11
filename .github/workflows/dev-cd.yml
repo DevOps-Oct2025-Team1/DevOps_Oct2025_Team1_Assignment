@@ -35,3 +35,4 @@ jobs:
       pubsub_emulator_host: ${{ secrets.PUBSUB_EMULATOR_HOST }}
       pubsub_topic_id: ${{ secrets.PUBSUB_TOPIC_ID }}
       pubsub_subscription_id: ${{ secrets.PUBSUB_SUBSCRIPTION_ID }}
+      vite_api_url: ${{ secrets.VITE_API_URL }}

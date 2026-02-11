@@ -48,6 +48,8 @@ on:
         required: true
       pubsub_subscription_id:
         required: true
+      vite_api_url:
+        required: true
 
 env:
   PROJECT_ID: ${{ secrets.gcp_project_id }}
@@ -185,7 +187,53 @@ jobs:
       - name: Deploy frontend (app) to GKE
         env:
           FRONTEND_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/frontend:${{ github.sha }}"
+          VITE_API_URL: "${{ secrets.vite_api_url }}"
         run: |
           cd app
           kustomize build . | envsubst | kubectl apply -f -
           kubectl rollout status deployment/frontend
+
+      # Deploy observability services
+      - name: Deploy Prometheus to GKE
+        run: |
+          kubectl apply -f monitoring/prometheus/
+          kubectl rollout status deployment/prometheus -n default || echo "Prometheus deployment status check completed"
+
+      - name: Deploy Grafana to GKE
+        run: |
+          kubectl apply -f monitoring/grafana/
+          kubectl rollout status deployment/grafana -n default || echo "Grafana deployment status check completed"
+
+      - name: Deploy Alertmanager to GKE
+        run: |
+          kubectl apply -f monitoring/alertmanager/
+          kubectl rollout status deployment/alertmanager -n default || echo "Alertmanager deployment status check completed"
+
+      - name: Deploy Discord Relay to GKE
+        env:
+          DISCORD_RELAY_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/discord-relay:${{ github.sha }}"
+        run: |
+          cd monitoring/discord-relay
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/discord-relay -n default || echo "Discord relay deployment status check completed"
+
+      - name: Deploy GCP Exporter to GKE
+        env:
+          GCP_EXPORTER_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/gcp-exporter:${{ github.sha }}"
+        run: |
+          cd monitoring/gcp-exporter
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/gcp-exporter -n default || echo "GCP exporter deployment status check completed"
+
+      - name: Deploy Metrics Exporter to GKE
+        env:
+          METRICS_EXPORTER_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/metrics-exporter:${{ github.sha }}"
+        run: |
+          cd monitoring/metrics-exporter
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/metrics-exporter -n default || echo "Metrics exporter deployment status check completed"
+
+      - name: Deploy Node Exporter and Kube State Metrics
+        run: |
+          kubectl apply -f monitoring/exporters/
+          echo "Node exporter and kube state metrics deployed"

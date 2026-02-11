@@ -157,7 +157,12 @@ jobs:
           docker build -t auth-service:${{ github.sha }} ./services/auth.service/
           docker build -t api-gateway:${{ github.sha }} ./services/api-gateway.service/
           docker build -t prompt-manager-service:${{ github.sha }} ./services/prompt-manager.service/
-          docker build -t frontend:${{ github.sha }} ./app
+          docker build --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} -t frontend:${{ github.sha }} ./app
+          
+          # Build observability services
+          docker build -t discord-relay:${{ github.sha }} ./monitoring/discord-relay/
+          docker build -t gcp-exporter:${{ github.sha }} ./monitoring/gcp-exporter/
+          docker build -t metrics-exporter:${{ github.sha }} ./monitoring/metrics-exporter/
           
           # Tag for Artifact Registry
           docker tag auth-service:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/auth-service:${{ github.sha }}
@@ -165,11 +170,21 @@ jobs:
           docker tag prompt-manager-service:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/prompt-manager-service:${{ github.sha }}
           docker tag frontend:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/frontend:${{ github.sha }}
           
+          # Tag observability services
+          docker tag discord-relay:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/discord-relay:${{ github.sha }}
+          docker tag gcp-exporter:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/gcp-exporter:${{ github.sha }}
+          docker tag metrics-exporter:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/metrics-exporter:${{ github.sha }}
+          
           # Push to Artifact Registry
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/auth-service:${{ github.sha }}
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/api-gateway:${{ github.sha }}
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/prompt-manager-service:${{ github.sha }}
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/frontend:${{ github.sha }}
+          
+          # Push observability services
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/discord-relay:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/gcp-exporter:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_STAGING_PROJECT_ID }}/staging-docker-repo/metrics-exporter:${{ github.sha }}
           
           echo "Images pushed successfully to staging Artifact Registry"
 
@@ -191,7 +206,12 @@ jobs:
           docker build -t auth-service:${{ github.sha }} ./services/auth.service/
           docker build -t api-gateway:${{ github.sha }} ./services/api-gateway.service/
           docker build -t prompt-manager-service:${{ github.sha }} ./services/prompt-manager.service/
-          docker build -t frontend:${{ github.sha }} ./app
+          docker build --build-arg VITE_API_URL=${{ secrets.VITE_API_URL }} -t frontend:${{ github.sha }} ./app
+          
+          # Build observability services
+          docker build -t discord-relay:${{ github.sha }} ./monitoring/discord-relay/
+          docker build -t gcp-exporter:${{ github.sha }} ./monitoring/gcp-exporter/
+          docker build -t metrics-exporter:${{ github.sha }} ./monitoring/metrics-exporter/
           
           # Tag for Artifact Registry
           docker tag auth-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
@@ -199,11 +219,21 @@ jobs:
           docker tag prompt-manager-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
           docker tag frontend:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
           
+          # Tag observability services
+          docker tag discord-relay:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
+          docker tag gcp-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
+          docker tag metrics-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
+          
           # Push to Artifact Registry
           docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
           docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/api-gateway:${{ github.sha }}
           docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
           docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
+          
+          # Push observability services
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
           
           echo "Images pushed successfully to production Artifact Registry"
 

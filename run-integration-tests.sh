@@ -145,6 +145,61 @@ else
 fi
 echo ""
 
+# ========================================
+# Monitoring Service Unit Tests (no Docker needed)
+# ========================================
+echo -e "${CYAN}========================================"
+echo -e "Running Monitoring Service Unit Tests"
+echo -e "========================================${NC}"
+echo ""
+
+echo -e "${YELLOW}Running Discord Relay Unit Tests...${NC}"
+cd monitoring/discord-relay || exit 1
+go test -v
+discord_test_result=$?
+cd ../.. || exit 1
+
+if [ $discord_test_result -eq 0 ]; then
+    echo -e "${GREEN}✅ Discord Relay tests passed${NC}"
+else
+    echo -e "${RED}❌ Discord Relay tests failed${NC}"
+fi
+echo ""
+
+echo -e "${YELLOW}Running Metrics Exporter Unit Tests...${NC}"
+cd monitoring/metrics-exporter || exit 1
+go test -v
+metrics_test_result=$?
+cd ../.. || exit 1
+
+if [ $metrics_test_result -eq 0 ]; then
+    echo -e "${GREEN}✅ Metrics Exporter tests passed${NC}"
+else
+    echo -e "${RED}❌ Metrics Exporter tests failed${NC}"
+fi
+echo ""
+
+echo -e "${YELLOW}Running GCP Exporter Unit Tests...${NC}"
+cd monitoring/gcp-exporter || exit 1
+go test -v
+gcp_test_result=$?
+cd ../.. || exit 1
+
+if [ $gcp_test_result -eq 0 ]; then
+    echo -e "${GREEN}✅ GCP Exporter tests passed${NC}"
+else
+    echo -e "${RED}❌ GCP Exporter tests failed${NC}"
+fi
+echo ""
+
+# ========================================
+# Service Integration Tests (with Docker)
+# ========================================
+echo -e "${CYAN}========================================"
+echo -e "Starting Docker services for integration tests..."
+echo -e "========================================${NC}"
+echo ""
+
 # Run Auth Service Tests
 echo -e "${CYAN}========================================"
 echo -e "Running Auth Service Integration Tests"
@@ -202,7 +257,30 @@ echo ""
 echo -e "${CYAN}========================================"
 echo -e "Test Results Summary"
 echo -e "========================================${NC}"
+echo ""
 
+# Monitoring unit tests
+echo -e "${CYAN}--- Monitoring Services (Unit Tests) ---${NC}"
+if [ $discord_test_result -eq 0 ]; then
+    echo -e "${GREEN}[PASS] Discord Relay Tests: PASSED${NC}"
+else
+    echo -e "${RED}[FAIL] Discord Relay Tests: FAILED${NC}"
+fi
+
+if [ $metrics_test_result -eq 0 ]; then
+    echo -e "${GREEN}[PASS] Metrics Exporter Tests: PASSED${NC}"
+else
+    echo -e "${RED}[FAIL] Metrics Exporter Tests: FAILED${NC}"
+fi
+
+if [ $gcp_test_result -eq 0 ]; then
+    echo -e "${GREEN}[PASS] GCP Exporter Tests: PASSED${NC}"
+else
+    echo -e "${RED}[FAIL] GCP Exporter Tests: FAILED${NC}"
+fi
+
+echo ""
+echo -e "${CYAN}--- Services (Integration Tests) ---${NC}"
 if [ $auth_test_result -eq 0 ]; then
     echo -e "${GREEN}[PASS] Auth Service Tests: PASSED${NC}"
 else
@@ -233,7 +311,7 @@ if [[ "$response" =~ ^[Yy]$ ]]; then
 fi
 
 # Exit with appropriate code
-if [ $auth_test_result -ne 0 ] || [ $gateway_test_result -ne 0 ] || [ $prompt_manager_test_result -ne 0 ]; then
+if [ $discord_test_result -ne 0 ] || [ $metrics_test_result -ne 0 ] || [ $gcp_test_result -ne 0 ] || [ $auth_test_result -ne 0 ] || [ $gateway_test_result -ne 0 ] || [ $prompt_manager_test_result -ne 0 ]; then
     exit 1
 fi
 

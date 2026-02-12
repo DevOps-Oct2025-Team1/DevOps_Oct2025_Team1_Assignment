@@ -7,29 +7,298 @@ on:
     branches: ["dev", "main"]
 
 jobs:
-  ci-dev:
+  ci:
     runs-on: ubuntu-latest
     # Required for uploading security results to the GitHub Security Tab
     permissions:
       security-events: write
       contents: read
+      actions: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- INTEGRATION TESTING PHASE ---
-      - name: Integration Tests (Placeholder)
-        id: integration_tests
-        run: echo "Integration tests will run here"
+      - name: Notify CI Start
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ job.status }}
+          title: "🚀 Dev CI Pipeline Started"
+          description: |
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run ID:** ${{ github.run_id }}
+          color: 0x0099ff
+          username: GitHub Actions
+
+      # --- GO SETUP ---
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      # --- INTEGRATION TESTS ---
+      - name: Start test services for integration tests
+        env:
+          # Docker-compose variables
+          POSTGRES_HOST: auth-db
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: devops_db
+          CHATS_POSTGRES_HOST: chats_db
+          CHATS_POSTGRES_PORT: 5432
+          CHATS_POSTGRES_USER: postgres
+          CHATS_POSTGRES_PASSWORD: postgres
+          CHATS_POSTGRES_DB: chats_db
+          DEFAULT_TESTUSER_USERNAME: testuser
+          DEFAULT_TESTUSER_PASSWORD: testpass
+          DEFAULT_ADMIN_USERNAME: admin
+          DEFAULT_ADMIN_PASSWORD: adminpass
+          JWT_SECRET: test-secret-key
+          AUTH_SERVICE_URL: http://auth:8001
+          ADMIN_SERVICE_URL: http://auth:8001
+          VITE_API_URL: http://localhost:8000
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+          
+      - name: Wait for integration test services to be ready
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: devops_db
+          CHATS_POSTGRES_USER: postgres
+          CHATS_POSTGRES_DB: chats_db
+        run: |
+          echo "Waiting for PostgreSQL (auth-db) to be ready..."
+          for i in {1..30}; do
+            if docker compose exec -T auth-db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB > /dev/null 2>&1; then
+              echo "Auth DB is ready"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          
+          echo "Waiting for PostgreSQL (chats_db) to be ready..."
+          for i in {1..30}; do
+            if docker compose exec -T chats_db pg_isready -U $CHATS_POSTGRES_USER -d $CHATS_POSTGRES_DB > /dev/null 2>&1; then
+              echo "Chats DB is ready"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          
+          echo "Waiting for Pub/Sub emulator..."
+          sleep 5
+          
+          echo "All services ready!"
+
+      - name: Run Integration Tests for Auth Service
+        working-directory: ./services/auth.service
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: devops_db
+          JWT_SECRET: test-secret-key
+        run: |
+          go test -v .
+
+      - name: Run Integration Tests for API Gateway Service
+        working-directory: ./services/api-gateway.service
+        env:
+          AUTH_SERVICE_URL: http://localhost:8001
+        run: |
+          go test -v .
+
+      - name: Run Integration Tests for Prompt Manager Service
+        working-directory: ./services/prompt-manager.service
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: chats_db
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_PROJECT_ID: local-project
+          PUBSUB_TOPIC_ID: prompt-requests
+          AUTH_SERVICE_URL: http://localhost:8001
+          GEMMA3_SERVICE_URL: http://localhost:8003
+          QWEN3_SERVICE_URL: http://localhost:8004
+        run: |
+          go test -v .
+
+      - name: Stop integration test services
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+
+      # --- START SERVICES FOR DAST (Using Kubernetes) ---
+      - name: Set up Kind cluster
+        uses: helm/kind-action@v1.7.0
+        with:
+          version: v0.19.0
+          cluster_name: dev-cluster
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          POSTGRES_DB=app_db
+          POSTGRES_USER=app_user
+          POSTGRES_PASSWORD=app_password
+          POSTGRES_HOST=auth-postgres-service
+          POSTGRES_PORT=5432
+          CHATS_POSTGRES_DB=chats_db
+          CHATS_POSTGRES_USER=chats_user
+          CHATS_POSTGRES_PASSWORD=chats_password
+          CHATS_POSTGRES_HOST=chats-postgres-service
+          CHATS_POSTGRES_PORT=5432
+          DEFAULT_TESTUSER_USERNAME=testuser
+          DEFAULT_TESTUSER_PASSWORD=testpass
+          DEFAULT_ADMIN_USERNAME=admin
+          DEFAULT_ADMIN_PASSWORD=adminpass
+          JWT_SECRET=test-secret-key-for-ci
+          AUTH_SERVICE_URL=http://auth-service:8001
+          ADMIN_SERVICE_URL=http://auth-service:8001
+          VITE_API_URL=http://localhost:8000
+          PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+          PUBSUB_PROJECT_ID=local-project
+          EOF
+
+      - name: Build and Start Services
+        run: |
+          docker build -t auth:latest ./services/auth.service/
+          docker build -t api-gateway:latest ./services/api-gateway.service/
+          docker build -t frontend:latest ./app
+          kind load docker-image auth:latest api-gateway:latest frontend:latest --name dev-cluster
+          kubectl create namespace dev
+          
+          # Set environment variables for substitution
+          export AUTH_SERVICE_IMAGE=auth:latest
+          export API_GATEWAY_IMAGE=api-gateway:latest
+          export FRONTEND_IMAGE=frontend:latest
+          export POSTGRES_DB=app_db
+          export POSTGRES_USER=app_user
+          export POSTGRES_PASSWORD=app_password
+          export JWT_SECRET=test-secret-key-for-ci
+          export API_GATEWAY_IP=""
+          export DEFAULT_TESTUSER_USERNAME=testuser
+          export DEFAULT_TESTUSER_PASSWORD=testpass
+          export DEFAULT_ADMIN_USERNAME=admin
+          export DEFAULT_ADMIN_PASSWORD=adminpass
+          
+          # Generate manifests with envsubst, remove hardcoded namespaces, and apply to dev
+          kustomize build services/auth.service | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          kustomize build services/api-gateway.service | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          kustomize build app | envsubst | sed '/^  namespace: default$/d' | kubectl apply -f - -n dev
+          
+          echo "Waiting for pods to be ready..."
+          kubectl get pods -n dev
+          kubectl wait --for=condition=Ready pod -l app=auth-postgres-db -n dev --timeout=180s || (kubectl describe pod -l app=auth-postgres-db -n dev && kubectl logs -l app=auth-postgres-db -n dev --tail=50)
+          kubectl wait --for=condition=Ready pod -l app=auth-service -n dev --timeout=180s || (kubectl describe pod -l app=auth-service -n dev && kubectl logs -l app=auth-service -n dev --tail=50)
+          kubectl wait --for=condition=Ready pod -l app=api-gateway -n dev --timeout=180s || (kubectl describe pod -l app=api-gateway -n dev && kubectl logs -l app=api-gateway -n dev --tail=50)
+          kubectl get pods -n dev
+
+      - name: Port Forward for DAST
+        run: |
+          echo "Setting up port-forward to API Gateway..."
+          kubectl port-forward -n dev svc/api-gateway 8000:8000 > /tmp/portforward.log 2>&1 &
+          PF_PID=$!
+          echo "PORT_FORWARD_PID=$PF_PID" >> $GITHUB_ENV
+          sleep 5
+          
+          echo "Testing connection to API Gateway..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000 > /dev/null 2>&1; then
+              echo "✓ API Gateway is reachable on port 8000"
+              curl -v http://localhost:8000 2>&1 | head -20
+              break
+            fi
+            echo "Waiting for API Gateway... ($i/30)"
+            sleep 2
+          done
+          
+          # Show port-forward logs if connection failed
+          if ! curl -s http://localhost:8000 > /dev/null 2>&1; then
+            echo "❌ API Gateway not reachable after 60s"
+            echo "Port-forward logs:"
+            cat /tmp/portforward.log
+            kubectl get pods -n dev
+            kubectl logs -n dev -l app=api-gateway --tail=50
+            exit 1
+          fi
+
+      # --- ACCEPTANCE TESTING PHASE ---
+      - name: Run Acceptance Tests
+        id: acceptance_tests
+        run: |
+          cd services
+          # Only run auth/admin tests - prompt-manager not deployed in CI
+          go test -v -run 'TestUserLoginAndAuthenticationFlow|TestAdminUserManagementFlow|TestUnauthorizedAccessPrevention' ./acceptance_test.go -timeout 5m
+        continue-on-error: false
+
+      - name: Notify Integration Tests Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_I }}
+          status: ${{ steps.acceptance_tests.outcome }}
+          title: "🧪 Integration & Acceptance Tests"
+          description: |
+            **Status:** ${{ steps.acceptance_tests.outcome }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
 
       # --- SECURITY PHASE (DAST) ---
       - name: Run DAST (OWASP ZAP)
         id: dast
-        uses: zaproxy/action-full-scan@v0.5.0
+        uses: zaproxy/action-full-scan@v0.12.0
         with:
-          target: 'http://localhost:8080' # Replace with production URL
-          cmd_options: '-t 5 -r zap-report.html'
+          target: 'http://localhost:8000'
+          cmd_options: '-a'
+        continue-on-error: true
+
+      - name: Upload ZAP Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-reports
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
+
+      - name: Notify DAST Result
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ steps.dast.outcome }}
+          title: "🔒 DAST Security Scan"
+          description: |
+            **Status:** ${{ steps.dast.outcome }}
+            **Tool:** OWASP ZAP
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions
+
+      - name: Shutdown Services
+        if: always()
+        run: |
+          if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID 2>/dev/null || true; fi
+          kind delete cluster --name dev-cluster
 
       # --- PERFORMANCE PHASE ---
       - name: Performance Tests (Placeholder)
@@ -44,58 +313,19 @@ jobs:
           echo "Executing Terraform apply to staging..."
           echo "Updating Kubernetes manifests for staging..."
 
-      # --- NOTIFICATIONS ---
-
-      # Initial Status Alert
-      - name: Notify Discord - CI Started
+      - name: Notify CI Completion
         if: always()
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+        uses: sarisia/actions-status-discord@v1
         with:
-          args: "🚀 **CI STARTED** | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}`"
-
-      # ROUTE: INTEGRATION TESTS (Dev Channel)
-      - name: Notify Discord - Integration Test Failure
-        if: failure() && steps.integration_tests.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_I }}
-        with:
-          args: "🔗 **INTEGRATION FAILURE**: Pub/Sub queue or service communication error. Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-      # ROUTE: DAST ALERTS (QA Channel)
-      - name: Notify Discord - DAST Alert
-        if: failure() && steps.dast.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_QA }}
-        with:
-          args: "🔍 **DAST ALERT**: Runtime security vulnerabilities detected during dynamic scanning. Check Security Tab."
-
-      # ROUTE: PERFORMANCE (Lead Dev/Architect)
-      - name: Notify Discord - Performance Failure
-        if: failure() && steps.perf_tests.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
-        with:
-          args: "📉 **PERF REGRESSION**: Model latency or RPS thresholds exceeded on `${{ github.ref_name }}`."
-
-      # ROUTE: STAGING DEPLOYMENT (DevOps Team)
-      - name: Notify Discord - Staging Deployment Failure
-        if: failure() && steps.staging_deploy.outcome == 'failure'
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
-        with:
-          args: "⚠️ **STAGING DEPLOYMENT FAILED**: Unable to deploy to staging environment. Check logs."
-
-      # ROUTE: RELEVANT STAKEHOLDERS (Management/AIDC Leads)
-      - name: Notify Stakeholders - Success
-        if: success()
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_MGMT }}
-        with:
-          args: "✅ **DEV PIPELINE SUCCESS**: All integration, DAST, and performance tests passed. Staging deployment complete."
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL_D }}
+          status: ${{ job.status }}
+          title: "✅ Dev CI Pipeline Complete"
+          description: |
+            **Final Status:** ${{ job.status }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Message:** ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+            **Repository:** ${{ github.repository }}
+            **Event:** ${{ github.event_name }}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: GitHub Actions

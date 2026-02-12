@@ -20,19 +20,19 @@ resources:
 
 configMapGenerator:
   - name: grafana-dashboards
-    namespace: dev
+    namespace: default
     files:
       - grafana/dashboards/k8s-monitoring.json
     options:
       disableNameSuffixHash: true
   - name: alertmanager-config
-    namespace: dev
+    namespace: default
     files:
       - alertmanager/alertmanager-config.yaml
     options:
       disableNameSuffixHash: true
   - name: discord-relay-config
-    namespace: dev
+    namespace: default
     literals:
       - DISCORD_CRITICAL_URLS=${DISCORD_CRITICAL_URLS}
       - DISCORD_WARNING_URLS=${DISCORD_WARNING_URLS}

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: discord-relay
-  namespace: dev
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: discord-relay
-          image: gcr.io/dop-assignment-team1/discord-relay:latest
+          image: ${DISCORD_RELAY_IMAGE:-gcr.io/dop-assignment-team1/discord-relay:latest}
           ports:
             - containerPort: 8080
           env:

@@ -62,15 +62,15 @@ jobs:
           docker build -t metrics-exporter:${{ github.sha }} ./monitoring/metrics-exporter/
           
           # Tag for Artifact Registry
-          docker tag auth-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
-          docker tag api-gateway:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/api-gateway:${{ github.sha }}
-          docker tag prompt-manager-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
-          docker tag frontend:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
+          # docker tag auth-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
+          # docker tag api-gateway:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/api-gateway:${{ github.sha }}
+          # docker tag prompt-manager-service:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
+          # docker tag frontend:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
           
           # Tag observability services
-          docker tag discord-relay:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
-          docker tag gcp-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
-          docker tag metrics-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
+          # docker tag discord-relay:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
+          # docker tag gcp-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
+          # docker tag metrics-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
           
           # Push to Artifact Registry
           # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}

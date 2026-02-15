@@ -2,6 +2,18 @@
 
 A microservices-based AI chat application with complete CI/CD pipelines, infrastructure-as-code (Terraform), monitoring, and Kubernetes deployment on Google Cloud Platform.
 
+**Try it out:** [http://35.239.187.233](http://35.239.187.233)
+
+**Default credentials (Admin):**
+- Username: admin
+- Password: adminpass
+
+**Default credentials (User):**
+- Username: testuser
+- Password: testpass
+
+This will be hosted until Thursday, 5 March 2026.
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
@@ -26,40 +38,7 @@ A microservices-based AI chat application with complete CI/CD pipelines, infrast
 
 ## Architecture Overview
 
-```
-                                    ┌─────────────────────────────────────────────────────────┐
-                                    │                    GCP / Kubernetes                      │
-                                    │                                                          │
-┌──────────┐     ┌──────────────┐   │   ┌─────────────┐    ┌─────────────┐    ┌────────────┐  │
-│          │     │              │   │   │             │    │             │    │            │  │
-│  Client  │────▶│  Frontend    │───┼──▶│ API Gateway │───▶│ Auth Service│───▶│  Auth DB   │  │
-│ Browser  │     │  (React/     │   │   │  (Port 8000)│    │ (Port 8001) │    │ PostgreSQL │  │
-│          │     │   Vite)      │   │   │             │    │             │    │            │  │
-└──────────┘     └──────────────┘   │   └──────┬──────┘    └─────────────┘    └────────────┘  │
-                                    │          │                                               │
-                                    │          │           ┌─────────────┐    ┌────────────┐  │
-                                    │          └──────────▶│   Prompt    │───▶│  Chats DB  │  │
-                                    │                      │   Manager   │    │ PostgreSQL │  │
-                                    │                      │ (Port 8002) │    │            │  │
-                                    │                      └──────┬──────┘    └────────────┘  │
-                                    │                             │                           │
-                                    │                      ┌──────▼──────┐                    │
-                                    │                      │  Pub/Sub    │                    │
-                                    │                      │  (Async)    │                    │
-                                    │                      └──────┬──────┘                    │
-                                    │                             │                           │
-                                    │              ┌──────────────┼──────────────┐            │
-                                    │              │              │              │            │
-                                    │       ┌──────▼─────┐ ┌──────▼─────┐ ┌──────▼─────┐     │
-                                    │       │   Gemma3   │ │   Qwen3    │ │  Other LLM │     │
-                                    │       │   Service  │ │   Service  │ │  Services  │     │
-                                    │       └────────────┘ └────────────┘ └────────────┘     │
-                                    │                                                          │
-                                    │   ┌─────────────────── Monitoring ──────────────────┐   │
-                                    │   │  Prometheus  │  Grafana  │  AlertManager        │   │
-                                    │   └─────────────────────────────────────────────────┘   │
-                                    └─────────────────────────────────────────────────────────┘
-```
+![Microservices Architecture Diagram](./images/microservices.jpg)
 
 ### Request Flow
 
@@ -132,7 +111,7 @@ DevOps_Oct2025_Team1_Assignment/
 │   └── pubsub-emulator.yaml          # Pub/Sub emulator
 │
 ├── .github/workflows/                # CI/CD pipelines
-|   ├── personal-ci.yml               # Generic branch CI (runs on any branch) 
+│   ├── personal-ci.yml               # Generic branch CI (runs on any branch) 
 │   ├── dev-ci.yml                    # Dev branch CI
 │   ├── main-ci.yml                   # Main branch CI
 │   ├── dev-cd.yml                    # Staging deployment
@@ -276,7 +255,7 @@ Terraform provisions the following GCP resources:
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose
-- [Go 1.23+](https://golang.org/dl/) (for running tests)
+- [Go 1.25+](https://golang.org/dl/) (for running tests)
 - [Node.js 22+](https://nodejs.org/) (for frontend development)
 
 ### Environment Variables
@@ -626,6 +605,22 @@ Feature Branch → dev branch (PR) → Staging Deployment
 
 ## Testing
 
+### Unit Tests
+
+Run unit tests locally:
+
+```bash
+# Application services
+cd services/auth.service && go test -short -v ./...
+cd ../api-gateway.service && go test -short -v ./...
+cd ../prompt-manager.service && go test -short -v ./...
+
+# Monitoring services
+cd ../../monitoring/discord-relay && go test -v ./...
+cd ../metrics-exporter && go test -v ./...
+cd ../gcp-exporter && go test -v ./...
+```
+
 ### Integration Tests
 
 Run integration tests locally with Docker Compose:
@@ -638,9 +633,9 @@ docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
 sleep 30
 
 # Run tests
-cd services/auth.service && go test -v ./... -tags=integration
-cd ../api-gateway.service && go test -v ./... -tags=integration
-cd ../prompt-manager.service && go test -v ./... -tags=integration
+cd services/auth.service && go test -v ./...
+cd ../api-gateway.service && go test -v ./...
+cd ../prompt-manager.service && go test -v ./...
 
 # Cleanup
 docker-compose -f docker-compose.yml -f docker-compose.test.yml down
@@ -661,13 +656,15 @@ Or use the provided test scripts:
 Acceptance tests verify end-to-end user flows:
 
 ```bash
-cd services/auth.service
-go test -v ./... -tags=acceptance -timeout 5m
+cd services
+go test -v  ./acceptance_test.go -timeout 5m -timeout 5m
 ```
 
 ---
 
 ## CI/CD Pipelines
+
+![CI/CD Pipeline Diagram](./images/cicd_pipeline.jpg)
 
 ### Workflow Overview
 

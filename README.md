@@ -650,10 +650,10 @@ Or use the provided test scripts:
 
 ```bash
 # Linux/macOS
-./services/run-integration-tests.sh
+./run-integration-tests.sh
 
 # Windows (PowerShell)
-./services/run-integration-tests.ps1
+./run-integration-tests.ps1
 ```
 
 ### Acceptance Tests

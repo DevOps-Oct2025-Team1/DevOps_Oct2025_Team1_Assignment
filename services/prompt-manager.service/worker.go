@@ -123,8 +123,8 @@ func processMessage(msg PubSubMessage) error {
 		return fmt.Errorf("failed to get messages: %w", err)
 	}
 
-	// 3. Construct prompt from history
-	prompt := buildPromptFromHistory(messages)
+	// 3. Construct prompt from history (using model-specific template)
+	prompt := buildPromptFromHistory(messages, msg.Model)
 
 	// 4. Get LLM service URL
 	llmURL, ok := llmServiceURLs[msg.Model]
@@ -153,29 +153,96 @@ func processMessage(msg PubSubMessage) error {
 	return nil
 }
 
-func buildPromptFromHistory(messages []Message) string {
+// System prompts - keep it simple for small models
+const systemPrompt = "You are a helpful AI assistant. Answer questions directly and concisely."
+
+// Qwen3 system prompt - uses /no_think to disable internal reasoning output
+const qwen3SystemPrompt = "You are a helpful AI assistant. Answer questions directly and concisely. /no_think"
+
+// buildPromptFromHistory constructs a prompt using model-specific chat templates
+func buildPromptFromHistory(messages []Message, model string) string {
+	switch model {
+	case "qwen3":
+		return buildQwen3Prompt(messages)
+	case "gemma3":
+		return buildGemma3Prompt(messages)
+	default:
+		return buildGemma3Prompt(messages)
+	}
+}
+
+// buildGemma3Prompt uses Gemma3's chat template format
+// Format: <start_of_turn>user\n...<end_of_turn>\n<start_of_turn>model\n
+func buildGemma3Prompt(messages []Message) string {
 	var sb strings.Builder
-	// Simple chat template:
-	// User: ...
-	// Assistant: ...
+
+	// System instruction (Gemma3 style - included in first user turn or as context)
+	sb.WriteString("<start_of_turn>user\n")
+	sb.WriteString(systemPrompt)
+	sb.WriteString("<end_of_turn>\n")
+	sb.WriteString("<start_of_turn>model\n")
+	sb.WriteString("Understood. I will be helpful and answer directly.<end_of_turn>\n")
+
 	for _, m := range messages {
-		// Skip the pending assistant message we just created (status pending, empty content)
+		// Skip the pending assistant message we just created
 		if m.Status == StatusPending && m.Role == RoleAssistant {
 			continue
 		}
 
-		roleName := "User"
 		switch m.Role {
+		case RoleUser:
+			sb.WriteString("<start_of_turn>user\n")
+			sb.WriteString(m.Content)
+			sb.WriteString("<end_of_turn>\n")
 		case RoleAssistant:
-			roleName = "Assistant"
+			sb.WriteString("<start_of_turn>model\n")
+			sb.WriteString(m.Content)
+			sb.WriteString("<end_of_turn>\n")
 		case RoleSystem:
-			roleName = "System"
+			// System messages are handled at the start
+			continue
+		}
+	}
+
+	// Prompt the model to respond
+	sb.WriteString("<start_of_turn>model\n")
+	return sb.String()
+}
+
+// buildQwen3Prompt uses Qwen3's ChatML template format
+// Format: <|im_start|>system\n...<|im_end|>\n<|im_start|>user\n...<|im_end|>\n<|im_start|>assistant\n
+// Uses /no_think to disable reasoning output for cleaner responses
+func buildQwen3Prompt(messages []Message) string {
+	var sb strings.Builder
+
+	// System message with /no_think to disable thinking output
+	sb.WriteString("<|im_start|>system\n")
+	sb.WriteString(qwen3SystemPrompt)
+	sb.WriteString("<|im_end|>\n")
+
+	for _, m := range messages {
+		// Skip the pending assistant message we just created
+		if m.Status == StatusPending && m.Role == RoleAssistant {
+			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("%s: %s\n", roleName, m.Content))
+		switch m.Role {
+		case RoleUser:
+			sb.WriteString("<|im_start|>user\n")
+			sb.WriteString(m.Content)
+			sb.WriteString("<|im_end|>\n")
+		case RoleAssistant:
+			sb.WriteString("<|im_start|>assistant\n")
+			sb.WriteString(m.Content)
+			sb.WriteString("<|im_end|>\n")
+		case RoleSystem:
+			// System messages are handled at the start
+			continue
+		}
 	}
-	// Append "Assistant: " to prompt the model to complete
-	sb.WriteString("Assistant: ")
+
+	// Prompt the model to respond
+	sb.WriteString("<|im_start|>assistant\n")
 	return sb.String()
 }
 

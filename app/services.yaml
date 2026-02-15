@@ -3,11 +3,19 @@ kind: Service
 metadata:
   name: frontend
 spec:
-  type: NodePort
+  # Testing: Using LoadBalancer with API_GATEWAY_IP on port 80
+  type: LoadBalancer
+  loadBalancerIP: ${API_GATEWAY_IP}
+  # Original NodePort configuration:
+  # type: NodePort
   selector:
     app: frontend
   ports:
+    # Testing: Exposing on port 80
     - protocol: TCP
-      port: 5173
+      port: 80
       targetPort: 5173
-      nodePort: 30173
+      # Original NodePort configuration:
+      # port: 5173
+      # targetPort: 5173
+      # nodePort: 30173

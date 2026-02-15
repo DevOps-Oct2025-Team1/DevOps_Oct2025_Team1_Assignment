@@ -4,17 +4,21 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
-// TestUnitBuildPromptFromHistory tests the buildPromptFromHistory function
+// TestUnitBuildPromptFromHistory_Empty tests the buildPromptFromHistory function with empty messages
 func TestUnitBuildPromptFromHistory_Empty(t *testing.T) {
 	messages := []Message{}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "gemma3")
 
-	expected := "Assistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	// Should still have the system prompt preamble and model response trigger
+	if !strings.Contains(result, systemPrompt) {
+		t.Errorf("Expected result to contain system prompt, got '%s'", result)
+	}
+	if !strings.HasSuffix(result, "<start_of_turn>model\n") {
+		t.Errorf("Expected result to end with model turn, got '%s'", result)
 	}
 }
 
@@ -23,11 +27,13 @@ func TestUnitBuildPromptFromHistory_SingleUserMessage(t *testing.T) {
 	messages := []Message{
 		{Role: RoleUser, Content: "Hello", Status: StatusCompleted},
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "gemma3")
 
-	expected := "User: Hello\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	if !strings.Contains(result, "<start_of_turn>user\nHello<end_of_turn>") {
+		t.Errorf("Expected result to contain user message, got '%s'", result)
+	}
+	if !strings.HasSuffix(result, "<start_of_turn>model\n") {
+		t.Errorf("Expected result to end with model turn, got '%s'", result)
 	}
 }
 
@@ -38,11 +44,16 @@ func TestUnitBuildPromptFromHistory_Conversation(t *testing.T) {
 		{Role: RoleAssistant, Content: "Hi there!", Status: StatusCompleted},
 		{Role: RoleUser, Content: "How are you?", Status: StatusCompleted},
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "gemma3")
 
-	expected := "User: Hello\nAssistant: Hi there!\nUser: How are you?\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	if !strings.Contains(result, "<start_of_turn>user\nHello<end_of_turn>") {
+		t.Errorf("Expected result to contain first user message, got '%s'", result)
+	}
+	if !strings.Contains(result, "<start_of_turn>model\nHi there!<end_of_turn>") {
+		t.Errorf("Expected result to contain assistant message, got '%s'", result)
+	}
+	if !strings.Contains(result, "<start_of_turn>user\nHow are you?<end_of_turn>") {
+		t.Errorf("Expected result to contain second user message, got '%s'", result)
 	}
 }
 
@@ -52,57 +63,71 @@ func TestUnitBuildPromptFromHistory_SkipsPendingAssistant(t *testing.T) {
 		{Role: RoleUser, Content: "Hello", Status: StatusCompleted},
 		{Role: RoleAssistant, Content: "", Status: StatusPending},
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "gemma3")
 
-	expected := "User: Hello\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	if !strings.Contains(result, "<start_of_turn>user\nHello<end_of_turn>") {
+		t.Errorf("Expected result to contain user message, got '%s'", result)
+	}
+	// Should NOT contain an empty assistant message
+	if strings.Contains(result, "<start_of_turn>model\n<end_of_turn>") {
+		t.Errorf("Should not contain empty pending assistant message, got '%s'", result)
 	}
 }
 
-// TestUnitBuildPromptFromHistory_WithSystemMessage tests with a system message
-func TestUnitBuildPromptFromHistory_WithSystemMessage(t *testing.T) {
+// TestUnitBuildPromptFromHistory_Qwen3Format tests Qwen3 model-specific format
+func TestUnitBuildPromptFromHistory_Qwen3Format(t *testing.T) {
 	messages := []Message{
-		{Role: RoleSystem, Content: "You are a helpful assistant.", Status: StatusCompleted},
 		{Role: RoleUser, Content: "Hello", Status: StatusCompleted},
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "qwen3")
 
-	expected := "System: You are a helpful assistant.\nUser: Hello\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	// Qwen3 uses ChatML format
+	if !strings.Contains(result, "<|im_start|>system\n") {
+		t.Errorf("Expected Qwen3 system tag, got '%s'", result)
+	}
+	// Should contain /no_think to disable reasoning output
+	if !strings.Contains(result, "/no_think") {
+		t.Errorf("Expected Qwen3 to have /no_think directive, got '%s'", result)
+	}
+	if !strings.Contains(result, "<|im_start|>user\nHello<|im_end|>") {
+		t.Errorf("Expected Qwen3 user format, got '%s'", result)
+	}
+	if !strings.HasSuffix(result, "<|im_start|>assistant\n") {
+		t.Errorf("Expected result to end with assistant turn, got '%s'", result)
 	}
 }
 
-// TestUnitBuildPromptFromHistory_LongConversation tests with multiple exchanges
-func TestUnitBuildPromptFromHistory_LongConversation(t *testing.T) {
+// TestUnitBuildPromptFromHistory_Gemma3Format tests Gemma3 model-specific format
+func TestUnitBuildPromptFromHistory_Gemma3Format(t *testing.T) {
 	messages := []Message{
-		{Role: RoleSystem, Content: "Be concise.", Status: StatusCompleted},
 		{Role: RoleUser, Content: "What is 2+2?", Status: StatusCompleted},
 		{Role: RoleAssistant, Content: "4", Status: StatusCompleted},
 		{Role: RoleUser, Content: "What is 3+3?", Status: StatusCompleted},
-		{Role: RoleAssistant, Content: "6", Status: StatusCompleted},
-		{Role: RoleUser, Content: "What is 4+4?", Status: StatusCompleted},
-		{Role: RoleAssistant, Content: "", Status: StatusPending}, // Current pending response
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "gemma3")
 
-	expected := "System: Be concise.\nUser: What is 2+2?\nAssistant: 4\nUser: What is 3+3?\nAssistant: 6\nUser: What is 4+4?\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	// Gemma3 uses start_of_turn/end_of_turn format
+	if !strings.Contains(result, "<start_of_turn>user\n") {
+		t.Errorf("Expected Gemma3 user tag, got '%s'", result)
+	}
+	if !strings.Contains(result, "<start_of_turn>model\n4<end_of_turn>") {
+		t.Errorf("Expected Gemma3 model response, got '%s'", result)
+	}
+	if !strings.HasSuffix(result, "<start_of_turn>model\n") {
+		t.Errorf("Expected result to end with model turn, got '%s'", result)
 	}
 }
 
-// TestUnitBuildPromptFromHistory_MultilineContent tests with multiline message content
-func TestUnitBuildPromptFromHistory_MultilineContent(t *testing.T) {
+// TestUnitBuildPromptFromHistory_DefaultModel tests default model falls back to Gemma3
+func TestUnitBuildPromptFromHistory_DefaultModel(t *testing.T) {
 	messages := []Message{
-		{Role: RoleUser, Content: "Line 1\nLine 2\nLine 3", Status: StatusCompleted},
+		{Role: RoleUser, Content: "Hello", Status: StatusCompleted},
 	}
-	result := buildPromptFromHistory(messages)
+	result := buildPromptFromHistory(messages, "unknown_model")
 
-	expected := "User: Line 1\nLine 2\nLine 3\nAssistant: "
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
+	// Should use Gemma3 format by default
+	if !strings.Contains(result, "<start_of_turn>") {
+		t.Errorf("Expected Gemma3 format for unknown model, got '%s'", result)
 	}
 }
 

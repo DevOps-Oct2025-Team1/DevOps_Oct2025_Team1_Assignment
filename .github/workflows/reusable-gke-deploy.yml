@@ -1,0 +1,239 @@
+name: Reusable GKE Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: 'Environment name (staging/production)'
+    secrets:
+      gcp_project_id:
+        required: true
+      gcp_sa_key:
+        required: true
+      gke_region:
+        required: true
+      artifact_repo:
+        required: true
+      gke_cluster:
+        required: true
+      postgres_db:
+        required: true
+      postgres_user:
+        required: true
+      postgres_password:
+        required: true
+      jwt_secret:
+        required: true
+      default_testuser_username:
+        required: true
+      default_testuser_password:
+        required: true
+      default_admin_username:
+        required: true
+      default_admin_password:
+        required: true
+      chats_postgres_db:
+        required: true
+      chats_postgres_user:
+        required: true
+      chats_postgres_password:
+        required: true
+      pubsub_project_id:
+        required: true
+      pubsub_emulator_host:
+        required: true
+      pubsub_topic_id:
+        required: true
+      pubsub_subscription_id:
+        required: true
+      vite_api_url:
+        required: true
+
+env:
+  PROJECT_ID: ${{ secrets.gcp_project_id }}
+  REGION: ${{ secrets.gke_region }}
+  ARTIFACT_REPO: ${{ secrets.artifact_repo }}
+  CLUSTER: ${{ secrets.gke_cluster }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.gcp_sa_key }}
+
+      - name: Set up GCP
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install Kustomize and envsubst
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          sudo apt-get update && sudo apt-get install -y gettext-base
+
+      # terraform deployment
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          terraform_wrapper: false
+
+      - name: Create Terraform State Bucket
+        run: |
+          BUCKET_NAME="${{ secrets.gcp_project_id }}-terraform-state"
+          if ! gsutil ls -b "gs://${BUCKET_NAME}" > /dev/null 2>&1; then
+            echo "Creating Terraform state bucket: gs://${BUCKET_NAME}"
+            gsutil mb -l ${{ secrets.gke_region }} "gs://${BUCKET_NAME}"
+            gsutil versioning set on "gs://${BUCKET_NAME}"
+            echo "Bucket created successfully"
+          else
+            echo "Terraform state bucket already exists: gs://${BUCKET_NAME}"
+          fi
+
+      - name: Setup GCP Credentials for Terraform
+        run: |
+          echo '${{ secrets.gcp_sa_key }}' > /tmp/gcp-key.json
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.gcp_project_id }}-terraform-state" \
+            -backend-config="prefix=terraform/state/${{ inputs.environment }}" \
+            -backend-config="credentials=/tmp/gcp-key.json"
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: |
+          terraform plan \
+            -var-file="environments/${{ inputs.environment }}.tfvars" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve tfplan
+
+      - name: Export Terraform Outputs
+        working-directory: ./terraform
+        id: terraform_outputs
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint)" >> $GITHUB_OUTPUT
+          echo "artifact_repository_id=$(terraform output -raw artifact_repository_id)" >> $GITHUB_OUTPUT
+          echo "region=$(terraform output -raw region)" >> $GITHUB_OUTPUT
+          echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
+          
+          # Set environment variables for subsequent steps
+          echo "CLUSTER=$(terraform output -raw cluster_name)" >> $GITHUB_ENV
+          echo "REGION=$(terraform output -raw region)" >> $GITHUB_ENV
+
+      - name: Get GKE credentials
+        run: |
+          echo "Getting credentials for cluster: ${{ steps.terraform_outputs.outputs.cluster_name }}"
+          gcloud container clusters get-credentials ${{ steps.terraform_outputs.outputs.cluster_name }} \
+            --region ${{ steps.terraform_outputs.outputs.region }} \
+            --project ${{ steps.terraform_outputs.outputs.project_id }}
+
+      # K8 deployment
+      - name: Deploy api-gateway to GKE
+        env:
+          API_GATEWAY_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/api-gateway:${{ github.sha }}"
+        run: |
+          cd services/api-gateway.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/api-gateway
+
+      - name: Deploy auth-service to GKE
+        env:
+          AUTH_SERVICE_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/auth-service:${{ github.sha }}"
+          POSTGRES_DB: "${{ secrets.postgres_db }}"
+          POSTGRES_USER: "${{ secrets.postgres_user }}"
+          POSTGRES_PASSWORD: "${{ secrets.postgres_password }}"
+          JWT_SECRET: "${{ secrets.jwt_secret }}"
+          DEFAULT_TESTUSER_USERNAME: "${{ secrets.default_testuser_username }}"
+          DEFAULT_TESTUSER_PASSWORD: "${{ secrets.default_testuser_password }}"
+          DEFAULT_ADMIN_USERNAME: "${{ secrets.default_admin_username }}"
+          DEFAULT_ADMIN_PASSWORD: "${{ secrets.default_admin_password }}"
+        run: |
+          cd services/auth.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/auth-service
+
+      - name: Deploy prompt-manager-service to GKE
+        env:
+          PROMPT_MANAGER_SERVICE_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/prompt-manager-service:${{ github.sha }}"
+          CHATS_POSTGRES_DB: "${{ secrets.chats_postgres_db }}"
+          CHATS_POSTGRES_USER: "${{ secrets.chats_postgres_user }}"
+          CHATS_POSTGRES_PASSWORD: "${{ secrets.chats_postgres_password }}"
+          PUBSUB_PROJECT_ID: "${{ secrets.pubsub_project_id }}"
+          PUBSUB_EMULATOR_HOST: "${{ secrets.pubsub_emulator_host }}"
+          PUBSUB_TOPIC_ID: "${{ secrets.pubsub_topic_id }}"
+          PUBSUB_SUBSCRIPTION_ID: "${{ secrets.pubsub_subscription_id }}"
+        run: |
+          cd services/prompt-manager.service
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/prompt-manager-service
+
+      - name: Deploy frontend (app) to GKE
+        env:
+          FRONTEND_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/frontend:${{ github.sha }}"
+          VITE_API_URL: "${{ secrets.vite_api_url }}"
+        run: |
+          cd app
+          kustomize build . | envsubst | kubectl apply -f -
+          kubectl rollout status deployment/frontend
+
+      # Deploy observability services
+      - name: Deploy Prometheus to GKE
+        run: |
+          kubectl apply -f monitoring/prometheus/
+          kubectl rollout status deployment/prometheus -n default || echo "Prometheus deployment status check completed"
+
+      - name: Deploy Grafana to GKE
+        run: |
+          kubectl apply -f monitoring/grafana/
+          kubectl rollout status deployment/grafana -n default || echo "Grafana deployment status check completed"
+
+      - name: Deploy Alertmanager to GKE
+        run: |
+          kubectl apply -f monitoring/alertmanager/
+          kubectl rollout status deployment/alertmanager -n default || echo "Alertmanager deployment status check completed"
+
+      - name: Deploy Discord Relay to GKE
+        env:
+          DISCORD_RELAY_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/discord-relay:${{ github.sha }}"
+        run: |
+          cd monitoring/discord-relay
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/discord-relay -n default || echo "Discord relay deployment status check completed"
+
+      - name: Deploy GCP Exporter to GKE
+        env:
+          GCP_EXPORTER_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/gcp-exporter:${{ github.sha }}"
+        run: |
+          cd monitoring/gcp-exporter
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/gcp-exporter -n default || echo "GCP exporter deployment status check completed"
+
+      - name: Deploy Metrics Exporter to GKE
+        env:
+          METRICS_EXPORTER_IMAGE: "${{ steps.terraform_outputs.outputs.region }}-docker.pkg.dev/${{ steps.terraform_outputs.outputs.project_id }}/${{ steps.terraform_outputs.outputs.artifact_repository_id }}/metrics-exporter:${{ github.sha }}"
+        run: |
+          cd monitoring/metrics-exporter
+          envsubst < deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/metrics-exporter -n default || echo "Metrics exporter deployment status check completed"
+
+      - name: Deploy Node Exporter and Kube State Metrics
+        run: |
+          kubectl apply -f monitoring/exporters/
+          echo "Node exporter and kube state metrics deployed"

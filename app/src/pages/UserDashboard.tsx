@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   Bot,
   ChevronDown,
+  ChevronRight,
   MessageSquare,
   Plus,
   Send,
@@ -20,6 +21,7 @@ import {
   PanelLeft,
   AlertCircle,
   Loader2,
+  Brain,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, ChatMessage, AIModel } from "@/lib/types"
@@ -38,6 +40,64 @@ const decodeJWT = (token: string): { username?: string; role?: string } | null =
   }
 };
 
+// Parse thinking content from LLM response
+// Handles multiple patterns:
+// 1. <think>...</think> tags (structured thinking)
+// 2. **Final Answer** pattern (unstructured thinking - Qwen3)
+interface ParsedContent {
+  thinking: string | null;
+  response: string;
+}
+
+const parseThinkingContent = (content: string): ParsedContent => {
+  // Pattern 1: Match <think>...</think> tags (case-insensitive, handles newlines)
+  const thinkingTagRegex = /<think>([\s\S]*?)<\/think>/i;
+  const tagMatch = content.match(thinkingTagRegex);
+
+  if (tagMatch) {
+    const thinking = tagMatch[1].trim();
+    const response = content.replace(thinkingTagRegex, '').trim();
+    return { thinking, response };
+  }
+
+  // Pattern 2: Match **Final Answer** pattern (Qwen3 without thinking mode)
+  // Everything before FIRST **Final Answer** is thinking
+  // Everything after FIRST **Final Answer** until SECOND **Final Answer** (or end) is response
+  const finalAnswerRegex = /\*\*Final Answer\*\*/gi;
+  const matches = [...content.matchAll(finalAnswerRegex)];
+
+  if (matches.length > 0) {
+    const firstMatch = matches[0];
+    const thinking = content.slice(0, firstMatch.index).trim();
+
+    let response: string;
+    if (matches.length > 1) {
+      // Take content between first and second **Final Answer**
+      response = content.slice(
+        firstMatch.index! + firstMatch[0].length,
+        matches[1].index
+      ).trim();
+    } else {
+      // Take everything after **Final Answer**
+      response = content.slice(firstMatch.index! + firstMatch[0].length).trim();
+    }
+
+    // Clean up common artifacts
+    response = response
+      .replace(/\\boxed\{([^}]*)\}/g, '$1')  // \boxed{...} -> content
+      .replace(/\\\[|\\\]/g, '')              // Remove \[ \] math delimiters
+      .replace(/\\+$/g, '')                   // Remove trailing backslashes
+      .trim();
+
+    // Only return thinking if there's substantial content
+    if (thinking.length > 50 && response.length > 0) {
+      return { thinking, response };
+    }
+  }
+
+  return { thinking: null, response: content };
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -54,6 +114,7 @@ export default function DashboardPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<number | null>(null)
   const isSendingRef = useRef(false)
@@ -329,6 +390,18 @@ export default function DashboardPage() {
     }
   }
 
+  const toggleThinking = (messageId: string) => {
+    setExpandedThinking(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId)
+      } else {
+        newSet.add(messageId)
+      }
+      return newSet
+    })
+  }
+
   return (
     <div className="flex h-screen w-full bg-background">
       {isLoading && (
@@ -587,9 +660,45 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {message.content}
-                              </p>
+                              {(() => {
+                                const parsed = message.role === "assistant"
+                                  ? parseThinkingContent(message.content)
+                                  : { thinking: null, response: message.content };
+                                const isExpanded = expandedThinking.has(message.id);
+
+                                return (
+                                  <>
+                                    {/* Thinking toggle section */}
+                                    {parsed.thinking && (
+                                      <div className="mb-2">
+                                        <button
+                                          onClick={() => toggleThinking(message.id)}
+                                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                        >
+                                          {isExpanded ? (
+                                            <ChevronDown className="h-3 w-3" />
+                                          ) : (
+                                            <ChevronRight className="h-3 w-3" />
+                                          )}
+                                          <Brain className="h-3 w-3" />
+                                          <span>{isExpanded ? "Hide thinking" : "Show thinking"}</span>
+                                        </button>
+                                        {isExpanded && (
+                                          <div className="mt-2 rounded-lg bg-muted/50 border border-border/50 p-3">
+                                            <p className="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground italic">
+                                              {parsed.thinking}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {/* Main response */}
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                      {parsed.response}
+                                    </p>
+                                  </>
+                                );
+                              })()}
                               {message.error_message && (
                                 <p className="mt-2 text-xs text-destructive">
                                   {message.error_message}

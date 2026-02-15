@@ -36,16 +36,16 @@ jobs:
           username: GitHub Actions
 
       # --- BUILD AND PUSH IMAGES TO ARTIFACT REGISTRY ---
-      - name: Authenticate to GCP
-        if: github.event_name == 'push'
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      # - name: Authenticate to GCP
+      #   if: github.event_name == 'push'
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Configure Docker for Artifact Registry
-        if: github.event_name == 'push'
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev
+      # - name: Configure Docker for Artifact Registry
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Build and Push Images
         if: github.event_name == 'push'
@@ -73,15 +73,15 @@ jobs:
           docker tag metrics-exporter:${{ github.sha }} us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
           
           # Push to Artifact Registry
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/api-gateway:${{ github.sha }}
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/auth-service:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/api-gateway:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/prompt-manager-service:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/frontend:${{ github.sha }}
           
           # Push observability services
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/discord-relay:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/gcp-exporter:${{ github.sha }}
+          # docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/production-docker-repo/metrics-exporter:${{ github.sha }}
           
           echo "Images pushed successfully to production Artifact Registry"
 
